@@ -4,7 +4,7 @@
    Bump VERSION whenever any app file changes. Only caches named barline-*
    are ever cleared, so other apps on the same site keep theirs. */
 const PREFIX = "barline-";
-const VERSION = PREFIX + "v1.4.0";
+const VERSION = PREFIX + "v1.5.0";
 const SHELL = [
   "./",
   "./index.html",
@@ -12,7 +12,8 @@ const SHELL = [
   "./icon-192.png",
   "./icon-512.png",
   "./icon-maskable-512.png",
-  "./apple-touch-icon.png"
+  "./apple-touch-icon.png",
+  "./vendor/abcjs-basic-min.js"
 ];
 
 self.addEventListener("install", (event) => {
