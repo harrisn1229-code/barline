@@ -304,6 +304,16 @@
   .kb .kw{fill:#FBFBFC;stroke:#B4BAC3;stroke-width:1}
   .kb .kk{fill:#23262B}
   .kb .on{fill:var(--kb-lit,var(--accent-fill))}
+  /* with a key set, lit keys go pale and carry a dot in their scale-degree colour */
+  .kb.deg .kw.on{fill:#DDE3EA}
+  .kb.deg .kk.on{fill:#4A515C}
+  .kb .kd{fill:var(--accent-fill);stroke:rgba(0,0,0,.55);stroke-width:.8}
+  .kb .kd.d1{fill:#F5C518}.kb .kd.d2{fill:#111214;stroke:#fff}.kb .kd.d3{fill:#2563EB}.kb .kd.d4{fill:#FFFFFF}
+  .kb .kd.d5{fill:#16A34A}.kb .kd.d6{fill:#7C3AED}.kb .kd.d7{fill:#EC4899}
+  .kchip b[class^="d"]{padding:1px 6px;border-radius:5px}
+  .kchip b.d1{background:#F5C518;color:#1A1400}.kchip b.d2{background:#111214;color:#F4F5F7}.kchip b.d3{background:#2563EB;color:#fff}
+  .kchip b.d4{background:#fff;color:#111214;box-shadow:inset 0 0 0 1px rgba(127,127,127,.5)}.kchip b.d5{background:#16A34A;color:#fff}
+  .kchip b.d6{background:#7C3AED;color:#fff}.kchip b.d7{background:#EC4899;color:#fff}
   .viewbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:14px}
   .page{--cfs:14px;padding-top:16px;border-top:.5px solid var(--rule)}
   .csec{margin-bottom:20px}
@@ -316,6 +326,14 @@
   .cline.act{background:var(--beat-soft);border-left-color:var(--beat)}
   .cline pre{margin:0;font-family:var(--mono);font-size:var(--cfs);line-height:1.65;white-space:pre;font-variant-ligatures:none}
   .cline .c{color:var(--chord);font-weight:600;background:var(--chord-soft);box-shadow:0 0 0 2px var(--chord-soft);border-radius:2px}
+  /* chords in the key, coloured by the scale degree of their root (same colours as the key strip) */
+  .cline .c.d1{background:#F5C518;color:#1A1400;box-shadow:0 0 0 2px #F5C518}
+  .cline .c.d2{background:#111214;color:#F4F5F7;box-shadow:0 0 0 2px #111214,0 0 0 3px rgba(127,127,127,.45)}
+  .cline .c.d3{background:#2563EB;color:#fff;box-shadow:0 0 0 2px #2563EB}
+  .cline .c.d4{background:#FFFFFF;color:#111214;box-shadow:0 0 0 2px #FFFFFF,0 0 0 3px rgba(127,127,127,.45)}
+  .cline .c.d5{background:#16A34A;color:#fff;box-shadow:0 0 0 2px #16A34A}
+  .cline .c.d6{background:#7C3AED;color:#fff;box-shadow:0 0 0 2px #7C3AED}
+  .cline .c.d7{background:#EC4899;color:#fff;box-shadow:0 0 0 2px #EC4899}
 
   /* text view */
   .txtactions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
@@ -2475,16 +2493,29 @@
   }
 
   /* ---------- chart view ---------- */
-  function colorize(line){
+  // degrees maps a root's pitch class to its scale degree (1-7) in the song's key; chords whose
+  // root is outside the key keep the plain chord colour.
+  function colorize(line, degrees){
     let out = "";
     const re = /(\s+)|(\|)|([^\s|]+)/g;
     let m;
     while ((m = re.exec(line)) !== null){
       if (m[1]) out += m[1];
       else if (m[2]) out += '<span class="bl">|</span>';
-      else out += '<span class="c">' + esc(m[3]) + "</span>";
+      else {
+        const r = /^([A-G][#b]?)/.exec(m[3]);
+        const d = degrees && r ? degrees[PC[r[1]]] : 0;
+        out += '<span class="c' + (d ? " d" + d : "") + '">' + esc(m[3]) + "</span>";
+      }
     }
     return out;
+  }
+  function keyDegrees(c){
+    const kn = keyNotes(c);
+    if (!kn) return null;
+    const map = {};
+    kn.syms.forEach((sym, i) => { const r = /^([A-G][#b]*)/.exec(sym); const pc = r ? PC[r[1]] : undefined; if (pc !== undefined) map[pc] = i + 1; });
+    return map;
   }
   function chordsUsed(c){
     const out = [], seen = {};
@@ -2497,13 +2528,14 @@
     return out;
   }
   // Two octaves from C with the chord's notes lit, stacked up from the root.
-  function keyboardSvg(sym){
+  // degrees (from keyDegrees) colours each lit key's dot by its scale degree in the song's key.
+  function keyboardSvg(sym, degrees){
     const ch = parseChord(sym);
     const lit = {};
     if (ch) ch.iv.forEach((i) => { let n = ch.root + i; while (n >= 24) n -= 12; lit[n] = 1; });
     const W = 8, H = 34, BW = 5, BH = 21, WHITE = [0, 2, 4, 5, 7, 9, 11], BLACK = { 1: 0, 3: 1, 6: 3, 8: 4, 10: 5 };
     const w = 14 * W + 1;
-    let s = '<svg class="kb" width="' + w + '" height="' + (H + 1) + '" viewBox="0 0 ' + w + " " + (H + 1) + '" aria-hidden="true">';
+    let s = '<svg class="kb' + (degrees ? " deg" : "") + '" width="' + w + '" height="' + (H + 1) + '" viewBox="0 0 ' + w + " " + (H + 1) + '" aria-hidden="true">';
     for (let o = 0; o < 2; o++) WHITE.forEach((pc, k) => {
       s += '<rect class="kw' + (lit[o * 12 + pc] ? " on" : "") + '" x="' + (0.5 + (o * 7 + k) * W) + '" y=".5" width="' + W + '" height="' + H + '" rx="1.5"/>';
     });
@@ -2511,6 +2543,12 @@
       const x = 0.5 + (o * 7 + BLACK[pc] + 1) * W - BW / 2;
       s += '<rect class="kk' + (lit[o * 12 + (+pc)] ? " on" : "") + '" x="' + x + '" y=".5" width="' + BW + '" height="' + BH + '" rx="1"/>';
     });
+    if (degrees){
+      // A dot on each lit key in its degree colour (a filled key can't show white or black).
+      const dot = (n, cx, cy, r) => { const d = degrees[n % 12]; s += '<circle class="kd' + (d ? " d" + d : "") + '" cx="' + cx + '" cy="' + cy + '" r="' + r + '"/>'; };
+      for (let o = 0; o < 2; o++) WHITE.forEach((pc, k) => { const n = o * 12 + pc; if (lit[n]) dot(n, 0.5 + (o * 7 + k) * W + W / 2, H - 5, 2.8); });
+      for (let o = 0; o < 2; o++) Object.keys(BLACK).forEach((pc) => { const n = o * 12 + (+pc); if (lit[n]) dot(n, 0.5 + (o * 7 + BLACK[pc] + 1) * W, BH - 4.5, 2.2); });
+    }
     return s + "</svg>";
   }
   function renderChart(){
@@ -2526,10 +2564,14 @@
       (c.artist.trim() ? '<p class="by">' + esc(c.artist.trim()) + "</p>" : "") +
       '<dl class="meta">' + meta.map((m) => "<div>" + (m[0] ? "<dt>" + m[0] + "</dt>" : "") + "<dd>" + esc(m[1]) + "</dd></div>").join("") + "</dl></header>";
     html += keyNotesHtml(c);
+    const degrees = keyDegrees(c);
     const used = chordsUsed(c);
     if (used.length){
       html += '<section class="bank" aria-label="Chords in this song"><div class="bank-head"><b>Chords</b><span>Tap one to hear it</span></div><div class="bank-row">' +
-        used.map((s) => '<button class="kchip" data-sym="' + esc(s) + '" aria-label="Play ' + esc(s) + '"><b>' + esc(s) + "</b>" + keyboardSvg(s) + "</button>").join("") +
+        used.map((s) => {
+          const r = /^([A-G][#b]?)/.exec(s), d = degrees && r ? degrees[PC[r[1]]] : 0;
+          return '<button class="kchip" data-sym="' + esc(s) + '" aria-label="Play ' + esc(s) + '"><b class="' + (d ? "d" + d : "") + '">' + esc(s) + "</b>" + keyboardSvg(s, degrees) + "</button>";
+        }).join("") +
         "</div></section>";
     }
     html += '<div class="viewbar" id="sizeBar"></div><div class="page" id="page"><p class="tapnote">Tap a section or a line to play from there.</p>';
@@ -2537,7 +2579,7 @@
       const label = blk.name + (blk.repeat > 1 ? " ×" + blk.repeat : "");
       html += '<div class="csec"><button class="csec-name" data-si="' + blk.si + '" aria-label="Play from the start of ' + esc(blk.name) + '">[' + esc(label) + "]</button>";
       blk.rows.forEach((r) => {
-        const body = r.lines.map((l) => !l.text.length ? " " : (l.kind === "lyric" ? esc(l.text) : colorize(l.text))).join("\n");
+        const body = r.lines.map((l) => !l.text.length ? " " : (l.kind === "lyric" ? esc(l.text) : colorize(l.text, degrees))).join("\n");
         html += '<div class="cline" role="button" tabindex="0" aria-label="Play from ' + esc(blk.name) + ", bar " + (r.from + 1) + '" data-si="' + blk.si + '" data-from="' + r.from + '" data-to="' + r.to + '"><pre>' + body + "</pre></div>";
       });
       html += "</div>";
