@@ -99,7 +99,7 @@
     --toast-bottom:calc(92px + env(safe-area-inset-bottom,0px));
   }
   body.on-chart{--toast-bottom:calc(108px + env(safe-area-inset-bottom,0px))}
-  button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-user-select:none;user-select:none}
+  button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-user-select:none;user-select:none;touch-action:manipulation}
   input,select,textarea{font:inherit;color:inherit}
   [hidden]{display:none!important}
   :focus-visible{outline:2px solid var(--beat);outline-offset:2px;border-radius:6px}
@@ -282,8 +282,12 @@
   .viewbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:14px}
   .page{--cfs:14px;padding-top:16px;border-top:.5px solid var(--rule)}
   .csec{margin-bottom:20px}
-  .csec-name{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
-  .cline{margin-left:-8px;padding:1px 8px;border-radius:6px;border-left:3px solid transparent;overflow-x:auto}
+  .csec-name{display:block;margin:0 0 6px -8px;padding:2px 8px;border-radius:6px;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--muted);text-align:left}
+  .csec-name:active{background:var(--surface-2)}
+  .tapnote{margin:0 0 12px;font-size:12.5px;color:var(--faint)}
+  .cline{margin-left:-8px;padding:1px 8px;border-radius:6px;border-left:3px solid transparent;overflow-x:auto;cursor:pointer;touch-action:manipulation}
+  .cline:active{background:var(--surface-2)}
+  @media (hover:hover){.cline:hover,.csec-name:hover{background:var(--surface-2)}}
   .cline.act{background:var(--beat-soft);border-left-color:var(--beat)}
   .cline pre{margin:0;font-family:var(--mono);font-size:var(--cfs);line-height:1.65;white-space:pre;font-variant-ligatures:none}
   .cline .c{color:var(--chord);font-weight:600;background:var(--chord-soft);box-shadow:0 0 0 2px var(--chord-soft);border-radius:2px}
@@ -1527,17 +1531,26 @@
         used.map((s) => '<button class="kchip" data-sym="' + esc(s) + '" aria-label="Play ' + esc(s) + '"><b>' + esc(s) + "</b>" + keyboardSvg(s) + "</button>").join("") +
         "</div></section>";
     }
-    html += '<div class="viewbar" id="sizeBar"></div><div class="page" id="page">';
+    html += '<div class="viewbar" id="sizeBar"></div><div class="page" id="page"><p class="tapnote">Tap a section or a line to play from there.</p>';
     blocks.forEach((blk) => {
-      html += '<div class="csec"><div class="csec-name">[' + esc(blk.name) + (blk.repeat > 1 ? " ×" + blk.repeat : "") + "]</div>";
+      const label = blk.name + (blk.repeat > 1 ? " ×" + blk.repeat : "");
+      html += '<div class="csec"><button class="csec-name" data-si="' + blk.si + '" aria-label="Play from the start of ' + esc(blk.name) + '">[' + esc(label) + "]</button>";
       blk.rows.forEach((r) => {
         const body = r.lines.map((l) => !l.text.length ? " " : (l.kind === "lyric" ? esc(l.text) : colorize(l.text))).join("\n");
-        html += '<div class="cline" data-si="' + blk.si + '" data-from="' + r.from + '" data-to="' + r.to + '"><pre>' + body + "</pre></div>";
+        html += '<div class="cline" role="button" tabindex="0" aria-label="Play from ' + esc(blk.name) + ", bar " + (r.from + 1) + '" data-si="' + blk.si + '" data-from="' + r.from + '" data-to="' + r.to + '"><pre>' + body + "</pre></div>";
       });
       html += "</div>";
     });
     root.innerHTML = html + "</div>";
     root.querySelectorAll(".kchip").forEach((b) => b.addEventListener("click", () => audition(b.dataset.sym)));
+    root.querySelectorAll(".csec-name").forEach((b) => b.addEventListener("click", () => playFrom(+b.dataset.si, 0)));
+    root.querySelectorAll(".cline").forEach((el) => {
+      const go = () => playFrom(+el.dataset.si, +el.dataset.from);
+      el.addEventListener("click", go);
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " "){ e.preventDefault(); e.stopPropagation(); go(); }
+      });
+    });
 
     const bar = $("sizeBar");
     const tr = h("div", "stepper");
@@ -1710,15 +1723,32 @@
   /* ============================ audio ============================ */
   let ctx = null, lookaheadId = null, nextTime = 0, cursor = null, queue = [], rafId = 0, wakeLock = null;
 
+  // Called from a tap. iOS can leave the audio "suspended" or "interrupted" (a call, another
+  // app, the lock screen); this wakes it, and rebuilds it if the watchdog found it frozen.
+  let ctxStuck = false;
   function ensureCtx(){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (ctx && (ctx.state === "closed" || ctxStuck)){
+      try { const p = ctx.close(); if (p && p.catch) p.catch(() => {}); } catch(e){}
+      ctx = null; piano = null;
+    }
+    ctxStuck = false;
     if (!ctx){
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return null;
       // Lets the click play even when an iPhone's silent switch is on.
       try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch(e){}
       ctx = new AC();
     }
-    if (ctx.state === "suspended") ctx.resume();
+    if (ctx.state !== "running"){
+      try { const p = ctx.resume(); if (p && p.catch) p.catch(() => {}); } catch(e){}
+    }
+    // Starting a silent sound inside the tap is what makes iOS hand the page its audio.
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch(e){}
     return ctx;
   }
   async function holdWake(on){
@@ -1739,6 +1769,12 @@
     gain.gain.exponentialRampToValueAtTime(0.0001, when + (accent ? 0.06 : 0.04));
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start(when); osc.stop(when + 0.09);
+    pendingClicks.push({ o: osc, t: when });
+  }
+  let pendingClicks = [];
+  function cancelPendingClicks(now){
+    pendingClicks.forEach((p) => { if (p.t > now){ try { p.o.stop(now); } catch(e){} } });
+    pendingClicks = [];
   }
 
   /* ---------- piano ---------- */
@@ -1819,6 +1855,7 @@
     lp.frequency.setValueAtTime(Math.min(f * 10, 10000), t);
     lp.frequency.setTargetAtTime(Math.min(Math.max(f * 2.5, 600), 10000), t + 0.01, 0.4);
     const g = ctx.createGain();
+    g.gain.value = 0;
     const tau = clamp(1.9 - (midi - 40) * 0.03, 0.5, 1.9);
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(vel, t + 0.005);
@@ -1834,14 +1871,16 @@
       o.start(t); o.stop(t + 7);
       return o;
     });
-    return { g: g, oscs: oscs };
+    return { g: g, oscs: oscs, t: t };
   }
   function pianoRelease(when){
     if (!piano) return;
     piano.voices.forEach((v) => {
       try { v.g.gain.cancelScheduledValues(when); } catch(e){}
       v.g.gain.setTargetAtTime(0.0001, when, 0.07);
-      v.oscs.forEach((o) => { try { o.stop(when + 0.6); } catch(e){} });
+      // A note scheduled for later than this never sounds at all.
+      const end = v.t >= when ? when : when + 0.6;
+      v.oscs.forEach((o) => { try { o.stop(end); } catch(e){} });
     });
     piano.voices = [];
   }
@@ -1870,14 +1909,22 @@
     piano.center = mean(best);
     return { rh: best, bass: 40 + ((ch.bass - 4 + 12) % 12) };
   }
+  let pianoFailed = false;
   function pianoStrike(sym, t, force){
-    if (!ctx || (!prefs.piano && !force)) return;
-    pianoRelease(t);
-    const ch = parseChord(sym);
-    if (!ch || !setupPiano()) return;
-    const v = voiceChord(ch);
-    piano.voices.push(pianoNote(v.bass, t, 0.16));
-    v.rh.forEach((n, j) => piano.voices.push(pianoNote(n, t + 0.006 + j * 0.008, 0.1 + Math.random() * 0.025)));
+    if (!ctx || pianoFailed || (!prefs.piano && !force)) return;
+    try {
+      pianoRelease(t);
+      const ch = parseChord(sym);
+      if (!ch || !setupPiano()) return;
+      const v = voiceChord(ch);
+      piano.voices.push(pianoNote(v.bass, t, 0.16));
+      v.rh.forEach((n, j) => piano.voices.push(pianoNote(n, t + 0.006 + j * 0.008, 0.1 + Math.random() * 0.025)));
+    } catch(e){
+      // Keep the click and the chart going even if this browser can't make the piano sound.
+      pianoFailed = true;
+      try { console.error("Barline piano:", e); } catch(_){}
+      toast("The piano couldn't play on this device. The click keeps going.");
+    }
   }
   // Called for each scheduled beat: plays a new chord where one is written, and
   // re-plays a held chord on each downbeat. Returns the chord that's sounding.
@@ -1912,30 +1959,54 @@
     if (state.pos) return state.pos.si;
     return 0;
   }
-  function play(){
+  // The chord already sounding when playback starts at flat[idx]: the last one written before it.
+  function chordBefore(flat, idx){
+    const c = cur();
+    for (let k = idx - 1; k >= 0; k--){
+      const bar = c.sections[flat[k].si].bars[flat[k].bi];
+      for (let b = c.top - 1; b >= 0; b--){ const ch = chordAt(bar, b); if (ch && ch !== "%") return ch; }
+    }
+    return "";
+  }
+  // opts.si / opts.bi start from that bar; opts.countIn === false skips the count-in.
+  function play(opts){
+    opts = opts || {};
     const c = cur();
     if (!c) return;
     if (!ensureCtx()){ toast("Sound isn't available in this browser."); return; }
-    if (state.loopSection) state.loopIdx = currentSectionIndex();
+    const from = opts.si !== undefined;
+    if (state.loopSection) state.loopIdx = from ? opts.si : currentSectionIndex();
     const flat = flatten();
     if (!flat.length){ toast("Add a bar first."); return; }
+    let start = 0;
+    if (from){
+      for (let k = 0; k < flat.length; k++) if (flat[k].si === opts.si && flat[k].bi === opts.bi){ start = k; break; }
+    }
     state.flat = flat;
     state.playing = true;
     queue = [];
-    cursor = { i: 0, beat: 0, count: prefs.countIn ? beatsPerBar(c) : 0, chord: "" };
+    const count = opts.countIn === false ? 0 : (prefs.countIn ? beatsPerBar(c) : 0);
+    cursor = { i: start, start: start, beat: 0, count: count, chord: chordBefore(flat, start) };
     nextTime = ctx.currentTime + 0.12;
+    clock = { t: ctx.currentTime, at: performance.now() };
     lookaheadId = setInterval(schedule, 25);
     schedule();
     rafId = requestAnimationFrame(frame);
     holdWake(true);
     syncPlayButton();
   }
+  // Tapping a line or section in the Chart view. While playing it jumps straight there.
+  function playFrom(si, bi){
+    const was = state.playing;
+    if (was) stop();
+    play({ si: si, bi: bi, countIn: was ? false : undefined });
+  }
   function stop(){
     if (!state.playing && !lookaheadId){ return; }
     state.playing = false;
     clearInterval(lookaheadId); lookaheadId = null;
     cancelAnimationFrame(rafId);
-    if (ctx) pianoRelease(ctx.currentTime);
+    if (ctx){ pianoRelease(ctx.currentTime); cancelPendingClicks(ctx.currentTime); }
     queue = []; cursor = null; state.pos = null;
     clearHighlight();
     holdWake(false);
@@ -1948,13 +2019,14 @@
     const beats = beatsPerBar(c);
     while (nextTime < ctx.currentTime + 0.12){
       const ev = { t: nextTime, i: cursor.i, beat: cursor.beat, count: cursor.count > 0, chord: "" };
+      if (pendingClicks.length > 48) pendingClicks = pendingClicks.filter((p) => p.t > ctx.currentTime);
       click(cursor.beat === 0, nextTime);
       if (!ev.count) ev.chord = comp(ev);
       queue.push(ev);
       nextTime += dur;
       if (cursor.count > 0){
         cursor.count--;
-        if (cursor.count === 0){ cursor.beat = 0; cursor.i = 0; }
+        if (cursor.count === 0){ cursor.beat = 0; cursor.i = cursor.start; }
         else cursor.beat = (cursor.beat + 1) % beats;
       } else {
         cursor.beat++;
@@ -1966,9 +2038,17 @@
       }
     }
   }
+  let clock = { t: 0, at: 0 };
   function frame(){
     if (!state.playing) return;
     const now = ctx.currentTime;
+    if (now !== clock.t) clock = { t: now, at: performance.now() };
+    else if (performance.now() - clock.at > 1500){
+      ctxStuck = true;
+      stop();
+      toast("The sound was interrupted. Tap Play to start again.");
+      return;
+    }
     while (queue.length > 1 && queue[1].t <= now) queue.shift();
     if (queue.length && queue[0].t <= now) paint(queue[0]);
     rafId = requestAnimationFrame(frame);
