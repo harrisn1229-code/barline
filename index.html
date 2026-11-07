@@ -281,7 +281,8 @@
   .keynotes{margin-bottom:18px}
   .kn-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
   .kn{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 2px 6px;border-radius:11px;box-shadow:inset 0 0 0 1px rgba(127,127,127,.35)}
-  .kn b{font-family:var(--mono);font-size:16px;font-weight:600;line-height:1.2}
+  .kn b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:15px;font-weight:600;line-height:1.2;letter-spacing:-.03em}
+  .kn:active{filter:brightness(.88)}
   .kn small{font-size:11px;font-weight:600;opacity:.8}
   .kn.d1{background:#F5C518;color:#1A1400}
   .kn.d2{background:#111214;color:#F4F5F7}
@@ -934,24 +935,29 @@
     if (KEY_FIFTHS[k.name] !== undefined){ name = k.name; fifths = KEY_FIFTHS[k.name]; }
     else { const e = (k.minor ? MIN_KEY : MAJ_KEY)[k.pc]; name = e[0]; fifths = e[1]; }
     const key = withTonic({ name: name, fifths: fifths, ka: keyAlts(fifths), t: 0 });
-    const notes = [];
+    // Triads built on each degree: major I ii iii IV V vi vii°, natural minor i ii° III iv v VI VII.
+    const Q = key.minor ? ["m", "°", "", "m", "m", "", ""] : ["", "m", "m", "", "", "m", "°"];
+    const RN = key.minor ? ["i", "ii°", "III", "iv", "v", "VI", "VII"] : ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
+    const notes = [], chords = [], syms = [];
     for (let i = 0; i < 7; i++){
       const st = (key.tonicStep + i) % 7, a = key.ka[st];
-      notes.push(LETTERS[st] + (a > 0 ? "♯".repeat(a) : "♭".repeat(-a)));
+      const n = LETTERS[st] + (a > 0 ? "♯".repeat(a) : "♭".repeat(-a));
+      notes.push(n); chords.push(n + Q[i]);
+      syms.push(LETTERS[st] + (a > 0 ? "#".repeat(a) : "b".repeat(-a)) + (Q[i] === "°" ? "dim" : Q[i]));
     }
-    return { label: pretty(name.replace(/m$/, "")) + (key.minor ? " minor" : " major"), notes: notes };
+    return { label: pretty(name.replace(/m$/, "")) + (key.minor ? " minor" : " major"), notes: notes, chords: chords, syms: syms, numerals: RN };
   }
   function keyNotesHtml(c){
     const kn = keyNotes(c);
     if (!kn) return "";
-    return '<section class="keynotes" aria-label="Notes in ' + esc(kn.label) + '"><div class="bank-head"><b>Notes in ' + esc(kn.label) + '</b><span>Scale degrees 1 to 7</span></div><div class="kn-row">' +
-      kn.notes.map((n, i) => '<span class="kn d' + (i + 1) + '"><b>' + esc(n) + "</b><small>" + (i + 1) + "</small></span>").join("") + "</div></section>";
+    return '<section class="keynotes" aria-label="Chords in ' + esc(kn.label) + '"><div class="bank-head"><b>Chords in ' + esc(kn.label) + '</b><span>Tap one to hear it</span></div><div class="kn-row">' +
+      kn.chords.map((ch, i) => '<button class="kn d' + (i + 1) + '" data-sym="' + esc(kn.syms[i]) + '" aria-label="Play ' + esc(ch) + ', chord ' + kn.numerals[i] + '"><b>' + esc(ch) + "</b><small>" + kn.numerals[i] + "</small></button>").join("") + "</div></section>";
   }
   function chartText(c){
     const title = c.title.trim() || "Untitled chart";
     const out = [c.artist.trim() ? title + " — " + c.artist.trim() : title, factsLine(c)];
     const kn = keyNotes(c);
-    if (kn) out.push("Notes in " + kn.label + ": " + kn.notes.join(" "));
+    if (kn) out.push("Chords in " + kn.label + ": " + kn.chords.map((ch, i) => ch + " (" + kn.numerals[i] + ")").join("  "));
     chartBlocks(c).forEach((blk) => {
       out.push("", "[" + blk.name + (blk.repeat > 1 ? " ×" + blk.repeat : "") + "]");
       blk.rows.forEach((r) => r.lines.forEach((l) => out.push(l.text)));
@@ -1767,6 +1773,7 @@
     openAi();
   }
   $("chartAi").addEventListener("click", openAi);
+  document.addEventListener("click", (e) => { const k = e.target.closest && e.target.closest(".kn[data-sym]"); if (k) audition(k.dataset.sym); });
   $("libAi").addEventListener("click", newChartWithAi);
 
   /* ============================ sync between devices ============================ */
@@ -3667,7 +3674,7 @@
       sc.oct = defaultOct(voice.clef);
       renderScore();
     } else { highlightSel(); syncPalette(); }
-    if (it.ev && it.ev.k.length) audition(it.ev.k, voice.p);
+    if (it.ev && it.ev.k.length) auditionNotes(it.ev.k, voice.p);
   }
   // Keep the selection on something real: past a full bar's end moves to the next bar.
   function normSel(){
@@ -3696,7 +3703,7 @@
     const r = el.getBoundingClientRect(), pal = $("dock").getBoundingClientRect();
     if (r.top < 120 || r.bottom > pal.top - 12) el.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
   }
-  function audition(notes, p){
+  function auditionNotes(notes, p){
     if (INSTRUMENTS[p.inst].kind === "drums" || !ensureCtx()) return;
     try {
       if (!setupPiano()) return;
@@ -3748,7 +3755,7 @@
       const ev = evs[sc.sel.idx];
       if (sc.stack && ev.k.length){ if (!ev.k.some((x) => toMidi(x) === toMidi(pitch))) ev.k.push(pitch); }
       else ev.k = [pitch];
-      audition(ev.k, p);
+      auditionNotes(ev.k, p);
       edited(!sc.stack);
       return;
     }
@@ -3761,7 +3768,7 @@
       free = freeIn(evs, -1);
     }
     evs.push({ k: [pitch], d: fitDur(Math.min(curDur(), free)) });
-    audition([pitch], p);
+    auditionNotes([pitch], p);
     if (sc.stack) sc.sel.idx = evs.length - 1;
     else sc.sel.idx = evs.length;
     edited(false);
@@ -3792,11 +3799,11 @@
       case "acc": {
         if (!ev || !ev.k.length) { toast("Select a note first."); return; }
         ev.k = ev.k.map((n) => [n[0], n[1], arg === 0 ? 0 : clamp(n[2] + arg, -2, 2)]);
-        audition(ev.k, p); edited(false);
+        auditionNotes(ev.k, p); edited(false);
         return;
       }
       case "oct": {
-        if (ev && ev.k.length){ ev.k = ev.k.map((n) => [n[0], clamp(n[1] + arg, 0, 8), n[2]]); audition(ev.k, p); edited(false); return; }
+        if (ev && ev.k.length){ ev.k = ev.k.map((n) => [n[0], clamp(n[1] + arg, 0, 8), n[2]]); auditionNotes(ev.k, p); edited(false); return; }
         sc.oct = clamp(sc.oct + arg, 1, 7); syncPalette();
         return;
       }
