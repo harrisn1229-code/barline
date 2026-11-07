@@ -417,6 +417,13 @@
     box-shadow:0 10px 28px rgba(0,0,0,.28);animation:toastIn .2s ease
   }
   .toast button{color:var(--toast-act);font-weight:700;padding:2px 2px}
+  /* ---------- sync ---------- */
+  .sync-line{display:block;margin:4px auto 0;padding:4px 10px;border-radius:8px;font-size:12.5px;color:var(--faint);text-align:center}
+  .sync-line.err{color:var(--danger)}
+  .sync-steps{margin:0 0 12px;padding-left:20px;font-size:13.5px;line-height:1.5;color:var(--muted)}
+  .sync-steps b{color:var(--ink)}
+  .sync-link{margin:0 0 12px;color:var(--chord);text-decoration:none}
+  .sync-btns{display:flex;flex:none;gap:6px}
   /* ---------- AI assistant ---------- */
   .ai-body{padding:0 18px 14px}
   .ai-note{margin:0 0 12px;font-size:13.5px;line-height:1.45;color:var(--muted)}
@@ -529,6 +536,7 @@
     <div class="lib-head" id="libHead" hidden><h2 id="libTitle">My charts</h2><div class="lib-head-r"><span>Recently edited</span><button class="iconbtn" id="folderMenu" aria-label="Folder options" hidden></button></div></div>
     <div id="libList"></div>
     <p class="lib-foot" id="libFoot"></p>
+    <button class="sync-line" id="syncLine" hidden aria-label="Sync now"></button>
   </main>
   <button class="fab" id="bNew">
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 3.5v11M3.5 9h11"/></svg>
@@ -668,6 +676,7 @@
     x20: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>',
     sparkle: '<svg width="21" height="21" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M9 2.5l1.7 4.8 4.8 1.7-4.8 1.7L9 15.5l-1.7-4.8L2.5 9l4.8-1.7z"/><path d="M15.5 12.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg>',
     mic: '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="6" height="10" rx="3"/><path d="M4.5 9.5a5.5 5.5 0 0011 0M10 15v2.5"/></svg>',
+    sync: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 8A6 6 0 005 5.5L3.5 7M4.5 12a6 6 0 0010.5 2.5l1.5-1.5"/><path d="M3.5 3.5V7H7M16.5 16.5V13H13"/></svg>',
     trash: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 5.5h13M8 5.5V3.5h4v2M5.5 5.5l.8 10.6a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-10.6"/></svg>',
     up: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 16V4M5 9l5-5 5 5"/></svg>',
     down: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4v12M5 11l5 5 5-5"/></svg>',
@@ -940,6 +949,7 @@
   function saveNow(){
     clearTimeout(saveTimer); saveTimer = null;
     if (!store.set(STORE_KEY, JSON.stringify(charts))) toast("Couldn't save. This phone's storage may be full.");
+    queueSync();
     if (!persistAsked && navigator.storage && navigator.storage.persist){
       persistAsked = true;
       navigator.storage.persist().catch(() => {});
@@ -952,14 +962,17 @@
   // Folders: a flat list. Each chart is in at most one (chart.folderId; "" = none).
   const FOLDER_KEY = "barline:folders:v1";
   let folders = [];
-  function cleanFolder(f){ return { id: String(f.id), name: String(f.name).trim().slice(0, 60), createdAt: +f.createdAt || Date.now() }; }
+  function cleanFolder(f){
+    const at = +f.createdAt || Date.now();
+    return { id: String(f.id), name: String(f.name).trim().slice(0, 60), createdAt: at, updatedAt: +f.updatedAt || at };
+  }
   function loadFolders(){
     try {
       const a = JSON.parse(store.get(FOLDER_KEY, "[]"));
       folders = (Array.isArray(a) ? a : []).filter((f) => f && f.id && String(f.name || "").trim()).map(cleanFolder);
     } catch(e){ folders = []; }
   }
-  const saveFolders = () => { if (!store.set(FOLDER_KEY, JSON.stringify(folders))) toast("Couldn't save. This phone's storage may be full."); };
+  const saveFolders = () => { if (!store.set(FOLDER_KEY, JSON.stringify(folders))) toast("Couldn't save. This phone's storage may be full."); queueSync(); };
   const folderById = (id) => (id && folders.find((f) => f.id === id)) || null;
   const sortedFolders = () => folders.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }));
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && saveTimer) saveNow(); });
@@ -1117,6 +1130,26 @@
       fontRow.appendChild(prev);
       card.appendChild(fontRow);
 
+      const syRow = setRow("Sync between devices");
+      const sySet = h("div", "ai-set");
+      const syOn = !!ghToken(), who = store.get(GH_USER, "");
+      sySet.appendChild(h("span", "", syOn ? "On with GitHub" + (who ? " (" + who + ")" : "") + ". " + syncLine() + "." : "Keep your charts the same on your phone, tablet and computer."));
+      const syBtns = h("div", "sync-btns");
+      if (syOn){
+        const now = h("button", "btn", "Sync now");
+        now.addEventListener("click", () => { closeSheet(); syncNow().then(() => toast(sync.status === "ok" ? "Synced." : (sync.msg || "Sync didn't finish."))); });
+        const off = h("button", "btn", "Turn off");
+        off.addEventListener("click", () => { closeSheet(); disconnectSync(); });
+        syBtns.appendChild(now); syBtns.appendChild(off);
+      } else {
+        const b = h("button", "btn", "Set up");
+        b.addEventListener("click", () => { closeSheet(); setTimeout(setupSync, 280); });
+        syBtns.appendChild(b);
+      }
+      sySet.appendChild(syBtns);
+      syRow.appendChild(sySet);
+      card.appendChild(syRow);
+
       const aiRow = setRow("AI assistant");
       const aiSet = h("div", "ai-set");
       const hasKey = !!aiKey();
@@ -1202,7 +1235,13 @@
         : (data && Array.isArray(data.sections)) ? [data] : null;
       if (!list){ toast("No charts found in that file."); return; }
       if (data && Array.isArray(data.folders)){
-        data.folders.forEach((f) => { if (f && f.id && String(f.name || "").trim() && !folderById(String(f.id))) folders.push(cleanFolder(f)); });
+        data.folders.forEach((f) => {
+          if (f && f.id && String(f.name || "").trim() && !folderById(String(f.id))){
+            const nf = cleanFolder(f);
+            if (tombs.folders[nf.id]){ untomb("folders", nf.id); nf.updatedAt = Date.now(); }
+            folders.push(nf);
+          }
+        });
         saveFolders();
       }
       let added = 0, updated = 0, same = 0;
@@ -1210,7 +1249,7 @@
         if (!raw || !Array.isArray(raw.sections)) return;
         const c = normalize(JSON.parse(JSON.stringify(raw)));
         const have = charts[c.id];
-        if (!have){ charts[c.id] = c; added++; }
+        if (!have){ if (tombs.charts[c.id]){ untomb("charts", c.id); c.updatedAt = Date.now(); } charts[c.id] = c; added++; }
         else if ((c.updatedAt || 0) > (have.updatedAt || 0)){ charts[c.id] = c; updated++; }
         else same++;
       });
@@ -1256,11 +1295,12 @@
     const snap = charts[id];
     if (!snap) return;
     delete charts[id];
+    tombstone("charts", id);
     saveNow();
     if (state.chartId === id) goLibrary(); else renderLibrary();
     toast("Deleted " + (snap.title.trim() || "Untitled chart") + ".", {
       label: "Undo",
-      run(){ charts[snap.id] = snap; saveNow(); renderLibrary(); }
+      run(){ untomb("charts", snap.id); snap.updatedAt = Date.now(); charts[snap.id] = snap; saveNow(); renderLibrary(); }
     });
   }
   function chartActions(id, fromLibrary){
@@ -1328,6 +1368,7 @@
     const c = charts[id];
     if (!c) return;
     c.folderId = folderId;
+    c.updatedAt = Date.now();
     saveNow();
     if (state.screen === "lib") renderLibrary();
     const f = folderById(folderId);
@@ -1347,18 +1388,20 @@
     const inside = Object.values(charts).filter((c) => c.folderId === f.id);
     actionSheet({ title: f.name, items: [
       { label: "Rename folder", icon: ICON.edit, run: () => nameSheet({ title: "Rename folder", value: f.name, action: "Save", onSave(name){
-        f.name = name; saveFolders(); renderLibrary();
+        f.name = name; f.updatedAt = Date.now(); saveFolders(); renderLibrary();
       } }) },
       { label: "Delete folder", icon: ICON.trash, danger: true, run: () => setTimeout(() => actionSheet({
         title: "Delete “" + f.name + "”?",
         message: inside.length ? "The " + (inside.length === 1 ? "chart" : inside.length + " charts") + " inside won't be deleted. " + (inside.length === 1 ? "It moves" : "They move") + " back to All." : "This folder is empty.",
         items: [{ label: "Delete folder", icon: ICON.trash, danger: true, run(){
           folders = folders.filter((x) => x !== f);
+          tombstone("folders", f.id);
           inside.forEach((c) => { c.folderId = ""; });
           saveFolders(); saveNow();
           prefs.folder = ""; savePrefs(); renderLibrary();
           toast("Deleted “" + f.name + "”.", { label: "Undo", run(){
-            folders.push(f); inside.forEach((c) => { if (charts[c.id]) charts[c.id].folderId = f.id; });
+            untomb("folders", f.id); f.updatedAt = Date.now();
+            folders.push(f); inside.forEach((c) => { if (charts[c.id]){ charts[c.id].folderId = f.id; charts[c.id].updatedAt = Date.now(); } });
             saveFolders(); saveNow(); prefs.folder = f.id; savePrefs(); renderLibrary();
           } });
         } }]
@@ -1634,6 +1677,7 @@
       if (cur() === target) renderChartScreen();
       ta.value = "";
       const undo = () => {
+        snap.updatedAt = Date.now();
         charts[snap.id] = normalize(snap); saveNow();
         if (state.chartId === snap.id) renderChartScreen(); else renderLibrary();
       };
@@ -1688,6 +1732,269 @@
   }
   $("chartAi").addEventListener("click", openAi);
   $("libAi").addEventListener("click", newChartWithAi);
+
+  /* ============================ sync between devices ============================ */
+  // Every device connected to the same GitHub account shares one secret gist ("Barline sync",
+  // file barline.json) holding all charts and folders. Merging is per chart and per folder: the copy
+  // changed most recently wins. Deletions are remembered for 90 days so a chart deleted on one device
+  // doesn't come back from another. The GitHub token (gist access only) and the AI key stay on the
+  // device; settings like theme stay per device too.
+  const GH_KEY = "barline:ghToken", GH_USER = "barline:ghUser", GIST_KEY = "barline:gistId", SYNC_AT = "barline:syncedAt", TOMB_KEY = "barline:deleted";
+  const GIST_FILE = "barline.json", GIST_DESC = "Barline sync";
+  const TOKEN_URL = "https://github.com/settings/tokens/new?scopes=gist&description=Barline%20sync";
+  const ghToken = () => store.get(GH_KEY, "") || "";
+  let tombs = (function(){
+    try { const t = JSON.parse(store.get(TOMB_KEY, "{}")) || {}; return { charts: t.charts || {}, folders: t.folders || {} }; }
+    catch(e){ return { charts: {}, folders: {} }; }
+  })();
+  const saveTombs = () => store.set(TOMB_KEY, JSON.stringify(tombs));
+  function tombstone(kind, id){ tombs[kind][id] = Date.now(); saveTombs(); }
+  function untomb(kind, id){ if (tombs[kind][id]){ delete tombs[kind][id]; saveTombs(); } }
+  const sync = { busy: false, again: false, timer: null, status: "", msg: "", applying: false };
+
+  class SyncError extends Error { constructor(msg, kind){ super(msg); this.kind = kind || ""; } }
+  async function gh(path, opts){
+    opts = opts || {};
+    const headers = { "Accept": "application/vnd.github+json", "Authorization": "Bearer " + (opts.token || ghToken()) };
+    if (opts.body) headers["Content-Type"] = "application/json";
+    let res;
+    try {
+      res = await fetch("https://api.github.com" + path, { method: opts.method || "GET", headers: headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache: "no-store" });
+    } catch(e){ throw new SyncError("You're offline. Changes will sync when you're back online.", "offline"); }
+    if (res.status === 401) throw new SyncError("GitHub didn't accept the sync token. Set up sync again in Settings.", "auth");
+    if (res.status === 404) throw new SyncError("Not found on GitHub.", "notfound");
+    if (res.status === 403 || res.status === 429){
+      const left = res.headers.get("x-ratelimit-remaining");
+      throw new SyncError(left === "0" ? "GitHub is limiting requests for a while. Sync will try again later." : "This token can't use gists. Create one with the gist box ticked.", left === "0" ? "rate" : "auth");
+    }
+    if (!res.ok) throw new SyncError("GitHub had a problem (" + res.status + "). Sync will try again later.", "server");
+    return res.status === 204 ? null : res.json();
+  }
+  async function findGist(){
+    for (let page = 1; page <= 10; page++){
+      const list = await gh("/gists?per_page=100&page=" + page);
+      const g = (list || []).find((x) => x && x.description === GIST_DESC && x.files && x.files[GIST_FILE]);
+      if (g) return g.id;
+      if (!list || list.length < 100) break;
+    }
+    return null;
+  }
+  async function readGist(id){
+    const g = await gh("/gists/" + id);
+    const f = g && g.files && g.files[GIST_FILE];
+    if (!f) return null;
+    let text = f.content;
+    if (f.truncated && f.raw_url){
+      try { text = await (await fetch(f.raw_url, { cache: "no-store" })).text(); }
+      catch(e){ throw new SyncError("You're offline. Changes will sync when you're back online.", "offline"); }
+    }
+    try { return JSON.parse(text); } catch(e){ return null; }
+  }
+  const payload = (chartMap) => JSON.stringify({ app: "barline", version: 2, savedAt: Date.now(), charts: chartMap, folders: folders, deleted: tombs });
+
+  // Merge what's in the gist with what's on this device. Returns what changed on each side.
+  function mergeRemote(remote){
+    const cutoff = Date.now() - 90 * 864e5;
+    const rDel = remote && remote.deleted || {};
+    const T = { charts: {}, folders: {} };
+    ["charts", "folders"].forEach((k) => {
+      [rDel[k] || {}, tombs[k]].forEach((src) => Object.keys(src).forEach((id) => { const t = +src[id] || 0; if (t > (T[k][id] || 0)) T[k][id] = t; }));
+      Object.keys(T[k]).forEach((id) => { if (T[k][id] < cutoff) delete T[k][id]; });
+    });
+    let remoteStale = !remote;
+    ["charts", "folders"].forEach((k) => {
+      const a = Object.keys(T[k]), b = rDel[k] || {};
+      if (a.length !== Object.keys(b).length || a.some((id) => +b[id] !== T[k][id])) remoteStale = true;
+    });
+
+    // Charts
+    const rc = remote && remote.charts && typeof remote.charts === "object" ? remote.charts : {};
+    const open = state.screen === "chart" ? state.chartId : null;
+    const busyHere = open && (state.playing || (document.activeElement && document.activeElement.closest && document.activeElement.closest("#screenChart") && isField(document.activeElement)));
+    const out = {}, push = {};
+    let localChanged = false, openGone = false, openReplaced = false;
+    new Set(Object.keys(charts).concat(Object.keys(rc))).forEach((id) => {
+      const L = charts[id] || null;
+      const R = rc[id] && Array.isArray(rc[id].sections) ? rc[id] : null;
+      const lt = L ? (L.updatedAt || 0) : -1, rt = R ? (+R.updatedAt || 0) : -1;
+      let win = L && lt >= rt ? L : (R ? normalize(JSON.parse(JSON.stringify(R))) : null);
+      if (win && T.charts[id] && T.charts[id] >= (win.updatedAt || 0)) win = null;
+      if (id === open && busyHere && win !== L){
+        // Don't swap the chart out from under someone typing or playing; pick it up next time.
+        if (L) out[id] = L;
+        if (R) push[id] = R;
+        return;
+      }
+      if (win){ out[id] = win; push[id] = win; }
+      if (win !== L){ localChanged = true; if (id === open){ if (win) openReplaced = true; else openGone = true; } }
+      if (!R ? !!win : (!win || +R.updatedAt !== win.updatedAt)) remoteStale = true;
+    });
+
+    // Folders
+    const rf = remote && Array.isArray(remote.folders) ? remote.folders : [];
+    const byId = {};
+    folders.forEach((f) => { byId[f.id] = f; });
+    const fOut = {};
+    new Set(folders.map((f) => f.id).concat(rf.filter((f) => f && f.id).map((f) => String(f.id)))).forEach((id) => {
+      const L = byId[id] || null;
+      const R0 = rf.find((f) => f && String(f.id) === id);
+      const R = R0 && String(R0.name || "").trim() ? cleanFolder(R0) : null;
+      let win = L && (!R || L.updatedAt >= R.updatedAt) ? L : R;
+      if (win && T.folders[id] && T.folders[id] >= win.updatedAt) win = null;
+      if (win) fOut[id] = win;
+      if (win !== L && !(win && L && win.updatedAt === L.updatedAt && win.name === L.name)) localChanged = true;
+      if (!R ? !!win : (!win || R.updatedAt !== win.updatedAt || R.name !== win.name)) remoteStale = true;
+    });
+
+    tombs = T; saveTombs();
+    if (localChanged){
+      Object.keys(charts).forEach((id) => { delete charts[id]; });
+      Object.assign(charts, out);
+      folders = Object.values(fOut);
+      sync.applying = true;
+      saveNow(); saveFolders();
+      sync.applying = false;
+    }
+    return { localChanged: localChanged, remoteStale: remoteStale, push: push, openGone: openGone, openReplaced: openReplaced };
+  }
+
+  async function syncNow(){
+    if (!ghToken()) return;
+    if (sync.busy){ sync.again = true; return; }
+    clearTimeout(sync.timer);
+    sync.busy = true; setSync("syncing", "");
+    try {
+      if (saveTimer) saveNow();
+      let id = store.get(GIST_KEY, "");
+      let remote = null;
+      if (id){
+        try { remote = await readGist(id); }
+        catch(e){ if (e.kind !== "notfound") throw e; id = ""; }
+      }
+      if (!id){
+        id = await findGist();
+        if (id) remote = await readGist(id);
+      }
+      const r = mergeRemote(remote);
+      if (!id){
+        const g = await gh("/gists", { method: "POST", body: { description: GIST_DESC, public: false, files: { [GIST_FILE]: { content: payload(r.push) } } } });
+        id = g.id;
+      } else if (r.remoteStale){
+        await gh("/gists/" + id, { method: "PATCH", body: { files: { [GIST_FILE]: { content: payload(r.push) } } } });
+      }
+      store.set(GIST_KEY, id);
+      store.set(SYNC_AT, String(Date.now()));
+      setSync("ok", "");
+      if (r.localChanged){
+        if (r.openGone){ toast("This chart was deleted on another device."); goLibrary(); }
+        else if (state.screen === "chart" && r.openReplaced) renderChartScreen();
+        else if (state.screen === "lib") renderLibrary();
+      }
+    } catch(e){
+      const err = e instanceof SyncError ? e : new SyncError("Sync didn't finish. It will try again.", "");
+      setSync(err.kind === "offline" ? "offline" : "error", err.message);
+      if (err.kind === "auth") toast(err.message);
+    } finally {
+      sync.busy = false;
+      if (sync.again){ sync.again = false; queueSync(800); }
+    }
+  }
+  function queueSync(ms){
+    if (!ghToken() || sync.applying) return;
+    clearTimeout(sync.timer);
+    sync.timer = setTimeout(syncNow, ms == null ? 2500 : ms);
+  }
+  function setSync(status, msg){
+    sync.status = status; sync.msg = msg;
+    if (state.screen === "lib") renderSyncLine();
+  }
+  function syncLine(){
+    if (!ghToken()) return "";
+    if (sync.status === "syncing") return "Syncing…";
+    if (sync.status === "offline") return "Offline. Will sync when you're back online.";
+    if (sync.status === "error") return "Sync paused: " + sync.msg;
+    const at = +store.get(SYNC_AT, "0");
+    return at ? "Synced " + (Date.now() - at < 60000 ? "just now" : relTime(at) + " ago").replace("now ago", "just now") : "Not synced yet";
+  }
+  function renderSyncLine(){
+    const el = $("syncLine");
+    if (!el) return;
+    const t = syncLine();
+    el.hidden = !t;
+    el.textContent = t;
+    el.classList.toggle("err", sync.status === "error");
+  }
+
+  function setupSync(){
+    openSheet((body) => {
+      const card = h("div", "bsheet-card");
+      const head = h("div", "bsheet-head");
+      head.appendChild(h("div", "bsheet-title", "Sync between devices"));
+      head.appendChild(h("div", "bsheet-msg", "Your charts and folders are kept in one secret gist on your GitHub account. Connect each device with a GitHub token and they stay the same."));
+      card.appendChild(head);
+      const box = h("div", "ai-body");
+      const ol = h("ol", "sync-steps");
+      ol.innerHTML = "<li>Open GitHub's token page below and sign in.</li><li>Pick an expiration (\"No expiration\" means you won't have to do this again), keep only <b>gist</b> ticked, then tap <b>Generate token</b>.</li><li>Copy the token (it starts with ghp_) and paste it here. Use the same GitHub account on every device.</li>";
+      box.appendChild(ol);
+      const link = h("a", "btn sync-link", "Open GitHub's token page");
+      link.href = TOKEN_URL; link.target = "_blank"; link.rel = "noopener";
+      box.appendChild(link);
+      const form = h("form", "");
+      const input = h("input", "name-in");
+      input.type = "password"; input.placeholder = "ghp_…"; input.autocomplete = "off"; input.spellcheck = false;
+      input.setAttribute("autocapitalize", "off"); input.setAttribute("aria-label", "GitHub token");
+      form.appendChild(input);
+      box.appendChild(form);
+      box.appendChild(h("p", "ai-note", "The token can only read and write gists, and it stays on this device. A secret gist isn't listed on your profile or in search, but anyone who has its link can open it."));
+      card.appendChild(box);
+      body.appendChild(card);
+      const go = h("button", "bsheet-cancel pri", "Connect");
+      go.type = "button";
+      const submit = async () => {
+        const v = input.value.trim();
+        if (!/^(ghp_|github_pat_|gho_)[A-Za-z0-9_]{20,}$/.test(v)){ toast("That doesn't look like a GitHub token (they start with ghp_ or github_pat_)."); input.focus(); return; }
+        go.textContent = "Connecting…"; go.disabled = true;
+        try {
+          const me = await gh("/user", { token: v });
+          store.set(GH_KEY, v);
+          store.set(GH_USER, me && me.login ? String(me.login) : "");
+          store.set(GIST_KEY, "");
+          // A brand-new device only has the untouched example chart; don't copy it to every device.
+          const ids = Object.keys(charts);
+          if (ids.length === 1 && charts[ids[0]].title === "Example: Blues in C" && charts[ids[0]].updatedAt === charts[ids[0]].createdAt){
+            const remoteId = await findGist();
+            if (remoteId){ delete charts[ids[0]]; sync.applying = true; saveNow(); sync.applying = false; }
+          }
+          closeSheet();
+          await syncNow();
+          if (sync.status === "ok"){ renderLibrary(); toast("Sync is on" + (me && me.login ? " for " + me.login : "") + "."); }
+        } catch(e){
+          go.textContent = "Connect"; go.disabled = false;
+          toast(e instanceof SyncError ? e.message : "Couldn't connect to GitHub.");
+        }
+      };
+      form.addEventListener("submit", (e) => { e.preventDefault(); submit(); });
+      go.addEventListener("click", submit);
+      const cancel = h("button", "bsheet-cancel", "Cancel");
+      cancel.addEventListener("click", closeSheet);
+      body.appendChild(go); body.appendChild(cancel);
+    }, true);
+    const k = document.querySelector("#sheetBody .name-in");
+    if (k) k.focus();
+  }
+  function disconnectSync(){
+    [GH_KEY, GH_USER, GIST_KEY, SYNC_AT].forEach((k) => { try { localStorage.removeItem(k); } catch(e){} });
+    sync.status = ""; clearTimeout(sync.timer);
+    toast("Sync is off on this device. Your charts stay here and in the gist.");
+    if (state.screen === "lib") renderLibrary();
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible"){
+      const at = +store.get(SYNC_AT, "0");
+      if (Date.now() - at > 20000) queueSync(300);
+    } else if (sync.timer && ghToken()){ clearTimeout(sync.timer); syncNow(); }
+  });
+  window.addEventListener("online", () => queueSync(500));
 
   /* ============================ routing ============================ */
   function openChart(id, replace){
@@ -1823,7 +2130,8 @@
       list.appendChild(grid);
     }
     const n = all.length;
-    $("libFoot").textContent = n ? n + (n === 1 ? " chart" : " charts") + " on this phone · nothing is uploaded" : "";
+    $("libFoot").textContent = n ? n + (n === 1 ? " chart" : " charts") + (ghToken() ? " · kept in sync on your devices" : " on this phone · nothing is uploaded") : "";
+    renderSyncLine();
     renderInstall();
   }
   $("q").addEventListener("input", (e) => { state.query = e.target.value; renderLibrary(); });
@@ -1835,7 +2143,8 @@
       message: n + (n === 1 ? " chart is" : " charts are") + " saved on this phone only. Back up now and then so a lost phone doesn't take them with it.",
       items: [
         { label: "Back up all charts", icon: ICON.backup, run: backupAll },
-        { label: "Import from backup", icon: ICON.import, run: () => $("importInput").click() }
+        { label: "Import from backup", icon: ICON.import, run: () => $("importInput").click() },
+        { label: ghToken() ? "Sync now" : "Sync between devices", icon: ICON.sync, run: () => { if (ghToken()) syncNow(); else setTimeout(setupSync, 280); } }
       ]
     });
   });
@@ -3675,6 +3984,8 @@
   loadCharts();
   loadFolders();
   route();
+  $("syncLine").addEventListener("click", () => syncNow());
+  if (ghToken()) queueSync(600);
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")){
     window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
   }
