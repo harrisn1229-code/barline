@@ -1,8 +1,10 @@
 /* Barline service worker: keeps the app working with no connection.
    The app opens from the cache instantly; a fresh copy is fetched in the
    background and used the next time the app opens.
-   Bump VERSION whenever any app file changes. */
-const VERSION = "barline-v1.0.0";
+   Bump VERSION whenever any app file changes. Only caches named barline-*
+   are ever cleared, so other apps on the same site keep theirs. */
+const PREFIX = "barline-";
+const VERSION = PREFIX + "v1.0.1";
 const SHELL = [
   "./",
   "./index.html",
@@ -21,7 +23,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith(PREFIX) && k !== VERSION).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
