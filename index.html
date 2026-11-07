@@ -153,6 +153,17 @@
   .lib-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:8px 4px}
   .lib-head h2{margin:0;font-size:12.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
   .lib-head span{font-size:12.5px;color:var(--faint)}
+  .lib-head-r{display:flex;align-items:center;gap:4px}
+  .lib-head .iconbtn{width:34px;height:28px;border-radius:8px;color:var(--muted)}
+  .folders{display:flex;gap:6px;overflow-x:auto;margin:0 -16px;padding:0 16px 10px;scrollbar-width:none}
+  .folders::-webkit-scrollbar{display:none}
+  .fchip{flex:none;display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;border-radius:16px;background:var(--surface-2);font-size:14px;font-weight:500;color:var(--muted);white-space:nowrap}
+  .fchip .n{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .fchip[aria-pressed="true"]{background:var(--accent-fill);color:var(--on-accent)}
+  .fchip[aria-pressed="true"] .n{color:inherit;opacity:.75}
+  .fchip.add{background:none;box-shadow:inset 0 0 0 1px var(--rule-strong);padding:0 12px 0 9px}
+  .fchip svg{width:16px;height:16px}
+  .card-tag{flex:none;max-width:38%;padding:1px 7px;border-radius:6px;background:var(--surface-2);font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cards{display:flex;flex-direction:column;background:var(--surface);border:.5px solid var(--rule);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
   .card{position:relative;display:flex;align-items:center}
   .card + .card::before{content:"";position:absolute;top:0;left:74px;right:0;border-top:.5px solid var(--rule)}
@@ -380,6 +391,14 @@
   .bsheet-item:active{background:var(--surface-2)}
   .bsheet-cancel{display:block;width:100%;height:56px;margin-top:8px;border-radius:18px;background:var(--surface);font-weight:600;font-size:17px;color:var(--chord)}
   .bsheet-cancel:active{background:var(--surface-2)}
+  .bsheet-cancel.pri{background:var(--accent-fill);color:var(--on-accent)}
+  .bsheet-cancel.pri:active{opacity:.85}
+  .bsheet-item .chk{margin-left:auto;display:grid;color:var(--chord)}
+  /* Sheets with a text field open from the top so the phone keyboard can't cover them. */
+  .bsheet.top{top:0;bottom:auto;padding-top:calc(10px + env(safe-area-inset-top,0px));padding-bottom:8px;transform:translateY(-105%)}
+  body.sheet-open .bsheet.top{transform:none}
+  .name-in{display:block;width:calc(100% - 36px);height:46px;margin:0 18px 16px;padding:0 13px;border:1px solid var(--rule-strong);border-radius:11px;background:var(--surface-2);font-size:16px;color:var(--ink);-webkit-appearance:none;appearance:none}
+  .name-in:focus{outline:none;border-color:var(--chord)}
   .set-row{display:flex;flex-direction:column;gap:9px;padding:14px 18px 16px;border-top:.5px solid var(--rule)}
   .set-row .lbl{font-size:13px;font-weight:500}
   .swatches{display:flex;gap:6px;flex-wrap:wrap}
@@ -419,11 +438,12 @@
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.8"/><path d="M10.6 10.6L14 14"/></svg>
         <input id="q" type="search" placeholder="Search charts" autocomplete="off" aria-label="Search charts">
       </label>
+      <div class="folders" id="folderBar" role="group" aria-label="Folders"></div>
     </div>
   </header>
   <main class="lib-main wrap gutter">
     <div class="install" id="install" hidden></div>
-    <div class="lib-head" id="libHead" hidden><h2>My charts</h2><span>Recently edited</span></div>
+    <div class="lib-head" id="libHead" hidden><h2 id="libTitle">My charts</h2><div class="lib-head-r"><span>Recently edited</span><button class="iconbtn" id="folderMenu" aria-label="Folder options" hidden></button></div></div>
     <div id="libList"></div>
     <p class="lib-foot" id="libFoot"></p>
   </main>
@@ -563,6 +583,9 @@
     backup: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5V15a1.5 1.5 0 001.5 1.5h9A1.5 1.5 0 0016 15V7.5"/><path d="M2.5 4h15v3.5h-15z"/><path d="M8 11h4"/></svg>',
     import: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12.5V3M6.5 9.5L10 13l3.5-3.5"/><path d="M3.5 13v3.5h13V13"/></svg>',
     x: '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l8 8M10 2l-8 8"/></svg>',
+    folder: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M2.5 5.5A1.5 1.5 0 014 4h3.6l1.8 2h6.6a1.5 1.5 0 011.5 1.5V15a1.5 1.5 0 01-1.5 1.5H4A1.5 1.5 0 012.5 15z"/></svg>',
+    folderAdd: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M2.5 5.5A1.5 1.5 0 014 4h3.6l1.8 2h6.6a1.5 1.5 0 011.5 1.5V15a1.5 1.5 0 01-1.5 1.5H4A1.5 1.5 0 012.5 15z"/><path d="M10 8.8v5M7.5 11.3h5"/></svg>',
+    edit: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M13.5 3.5l3 3L7 16H4v-3z"/></svg>',
     gear: '<svg width="21" height="21" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4"/></svg>',
     check: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>',
     note: '<svg width="44" height="44" viewBox="0 0 44 44" fill="none"><rect x="8" y="9" width="3" height="26" rx="1.5" fill="currentColor" opacity=".45"/><circle cx="19" cy="22" r="4" fill="var(--beat)"/><rect x="27" y="9" width="3" height="26" rx="1.5" fill="currentColor" opacity=".45"/><rect x="33" y="9" width="5" height="26" rx="1.5" fill="currentColor" opacity=".45"/></svg>'
@@ -570,6 +593,7 @@
   $("libMenu").innerHTML = ICON.more;
   $("chartMenu").innerHTML = ICON.more;
   $("libSettings").innerHTML = ICON.gear;
+  $("folderMenu").innerHTML = ICON.more;
 
   /* ============================ model ============================ */
   const SECTION_NAMES = ["Intro","Verse","Pre-Chorus","Chorus","Bridge","Solo","Breakdown","Outro"];
@@ -617,6 +641,7 @@
     c.bot = [2,4,8].indexOf(parseInt(c.bot,10)) !== -1 ? parseInt(c.bot,10) : 4;
     c.barsPerLine = clamp(parseInt(c.barsPerLine,10) || 4, 1, 8);
     c.title = String(c.title || ""); c.artist = String(c.artist || ""); c.key = String(c.key || "");
+    c.folderId = typeof c.folderId === "string" ? c.folderId : "";
     c.createdAt = +c.createdAt || Date.now(); c.updatedAt = +c.updatedAt || c.createdAt;
     return c;
   }
@@ -784,13 +809,27 @@
   function saveSoon(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 300); }
   function touch(){ const c = cur(); if (c) c.updatedAt = Date.now(); saveSoon(); }
   const sortedCharts = () => Object.values(charts).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+  // Folders: a flat list. Each chart is in at most one (chart.folderId; "" = none).
+  const FOLDER_KEY = "barline:folders:v1";
+  let folders = [];
+  function cleanFolder(f){ return { id: String(f.id), name: String(f.name).trim().slice(0, 60), createdAt: +f.createdAt || Date.now() }; }
+  function loadFolders(){
+    try {
+      const a = JSON.parse(store.get(FOLDER_KEY, "[]"));
+      folders = (Array.isArray(a) ? a : []).filter((f) => f && f.id && String(f.name || "").trim()).map(cleanFolder);
+    } catch(e){ folders = []; }
+  }
+  const saveFolders = () => { if (!store.set(FOLDER_KEY, JSON.stringify(folders))) toast("Couldn't save. This phone's storage may be full."); };
+  const folderById = (id) => (id && folders.find((f) => f.id === id)) || null;
+  const sortedFolders = () => folders.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }));
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && saveTimer) saveNow(); });
   window.addEventListener("pagehide", () => { if (saveTimer) saveNow(); });
 
   /* ============================ prefs + state ============================ */
   const prefs = Object.assign(
     { met: true, countIn: true, vol: 0.55, zoom: "bar", view: "edit", chartSize: "fit", fence: false, installDismissed: false,
-      theme: "system", accent: "teal", titleFont: "sans", piano: true, pianoVol: 0.8 },
+      theme: "system", accent: "teal", titleFont: "sans", piano: true, pianoVol: 0.8, folder: "" },
     (function(){ try { return JSON.parse(store.get("barline:prefs", "{}")) || {}; } catch(e){ return {}; } })()
   );
   const savePrefs = () => store.set("barline:prefs", JSON.stringify(prefs));
@@ -836,8 +875,9 @@
 
   let sheetReturn = null;
   let sheetHideTimer = null;
-  function openSheet(build){
+  function openSheet(build, top){
     clearTimeout(sheetHideTimer);
+    $("bsheet").classList.toggle("top", !!top);
     const body = $("sheetBody");
     body.innerHTML = "";
     build(body);
@@ -865,6 +905,10 @@
         const b = h("button", "bsheet-item" + (it.danger ? " danger" : ""));
         b.innerHTML = it.icon || "";
         b.appendChild(h("span", "", it.label));
+        if (it.current){
+          const k = h("span", "chk"); k.innerHTML = ICON.check; b.appendChild(k);
+          b.setAttribute("aria-current", "true");
+        }
         b.addEventListener("click", () => { closeSheet(); it.run(); });
         card.appendChild(b);
       });
@@ -990,7 +1034,7 @@
   function backupAll(){
     const d = new Date();
     const stamp = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    const data = { app: "barline", version: 1, exportedAt: d.toISOString(), charts: sortedCharts() };
+    const data = { app: "barline", version: 1, exportedAt: d.toISOString(), folders: folders, charts: sortedCharts() };
     shareFile("barline-backup-" + stamp + ".json", JSON.stringify(data, null, 2), "application/json")
       .then((r) => { if (r === "saved") toast("Backup saved."); });
   }
@@ -1003,6 +1047,10 @@
         : (data && Array.isArray(data.charts)) ? data.charts
         : (data && Array.isArray(data.sections)) ? [data] : null;
       if (!list){ toast("No charts found in that file."); return; }
+      if (data && Array.isArray(data.folders)){
+        data.folders.forEach((f) => { if (f && f.id && String(f.name || "").trim() && !folderById(String(f.id))) folders.push(cleanFolder(f)); });
+        saveFolders();
+      }
       let added = 0, updated = 0, same = 0;
       list.forEach((raw) => {
         if (!raw || !Array.isArray(raw.sections)) return;
@@ -1031,6 +1079,7 @@
   /* ============================ chart actions ============================ */
   function newChart(){
     const c = blankChart();
+    if (state.screen === "lib" && folderById(prefs.folder)) c.folderId = prefs.folder;
     charts[c.id] = c;
     saveNow();
     prefs.view = "edit"; savePrefs();
@@ -1068,11 +1117,121 @@
     items.push(
       { label: "Share as text", icon: ICON.share, run: () => shareChart(c) },
       { label: "Duplicate", icon: ICON.dup, run: () => duplicateChart(id, !fromLibrary) },
+      { label: "Move to folder", icon: ICON.folder, run: () => setTimeout(() => moveSheet(id), 280) },
       { label: "Delete chart", icon: ICON.trash, danger: true, run: () => deleteChart(id) }
     );
     if (!fromLibrary) items.splice(items.length - 1, 0, { label: "Settings", icon: ICON.gear, run: () => setTimeout(openSettings, 280) });
     actionSheet({ title: c.title.trim() || "Untitled chart", items: items });
   }
+
+  /* ============================ folders ============================ */
+  // A one-field sheet for naming a folder. Opens from the top and focuses the field in the
+  // same tap, so iPhones bring up the keyboard.
+  function nameSheet(opts){
+    openSheet((body) => {
+      const card = h("div", "bsheet-card");
+      const head = h("div", "bsheet-head");
+      head.appendChild(h("div", "bsheet-title", opts.title));
+      card.appendChild(head);
+      const form = h("form", "");
+      const input = h("input", "name-in");
+      input.value = opts.value || ""; input.placeholder = "Folder name"; input.maxLength = 60;
+      input.autocomplete = "off"; input.enterKeyHint = "done"; input.setAttribute("aria-label", "Folder name");
+      form.appendChild(input);
+      card.appendChild(form);
+      body.appendChild(card);
+      const save = h("button", "bsheet-cancel pri", opts.action || "Save");
+      save.type = "button";
+      const cancel = h("button", "bsheet-cancel", "Cancel");
+      const submit = () => {
+        const v = input.value.trim().slice(0, 60);
+        if (!v){ input.focus(); return; }
+        closeSheet();
+        opts.onSave(v);
+      };
+      form.addEventListener("submit", (e) => { e.preventDefault(); submit(); });
+      save.addEventListener("click", submit);
+      cancel.addEventListener("click", closeSheet);
+      body.appendChild(save); body.appendChild(cancel);
+    }, true);
+    const input = document.querySelector("#sheetBody .name-in");
+    if (input){ input.focus(); input.select(); }
+  }
+  function createFolder(then){
+    nameSheet({ title: "New folder", action: "Create folder", onSave(name){
+      let f = folders.find((x) => x.name.toLowerCase() === name.toLowerCase());
+      if (!f){ f = cleanFolder({ id: uid(), name: name }); folders.push(f); saveFolders(); }
+      then(f);
+    } });
+  }
+  function selectFolder(id){
+    prefs.folder = folderById(id) ? id : ""; savePrefs();
+    renderLibrary();
+    const on = document.querySelector('.fchip[aria-pressed="true"]');
+    if (on) on.scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+  }
+  function setChartFolder(id, folderId){
+    const c = charts[id];
+    if (!c) return;
+    c.folderId = folderId;
+    saveNow();
+    if (state.screen === "lib") renderLibrary();
+    const f = folderById(folderId);
+    toast(f ? "Moved to “" + f.name + "”." : "Taken out of its folder.");
+  }
+  function moveSheet(id){
+    const c = charts[id];
+    if (!c) return;
+    const items = [{ label: "No folder", icon: ICON.open, current: !folderById(c.folderId), run: () => setChartFolder(id, "") }];
+    sortedFolders().forEach((f) => items.push({ label: f.name, icon: ICON.folder, current: c.folderId === f.id, run: () => setChartFolder(id, f.id) }));
+    items.push({ label: "New folder…", icon: ICON.folderAdd, run: () => createFolder((f) => setChartFolder(id, f.id)) });
+    actionSheet({ title: "Move to folder", message: c.title.trim() || "Untitled chart", items: items });
+  }
+  function folderActions(){
+    const f = folderById(prefs.folder);
+    if (!f) return;
+    const inside = Object.values(charts).filter((c) => c.folderId === f.id);
+    actionSheet({ title: f.name, items: [
+      { label: "Rename folder", icon: ICON.edit, run: () => nameSheet({ title: "Rename folder", value: f.name, action: "Save", onSave(name){
+        f.name = name; saveFolders(); renderLibrary();
+      } }) },
+      { label: "Delete folder", icon: ICON.trash, danger: true, run: () => setTimeout(() => actionSheet({
+        title: "Delete “" + f.name + "”?",
+        message: inside.length ? "The " + (inside.length === 1 ? "chart" : inside.length + " charts") + " inside won't be deleted. " + (inside.length === 1 ? "It moves" : "They move") + " back to All." : "This folder is empty.",
+        items: [{ label: "Delete folder", icon: ICON.trash, danger: true, run(){
+          folders = folders.filter((x) => x !== f);
+          inside.forEach((c) => { c.folderId = ""; });
+          saveFolders(); saveNow();
+          prefs.folder = ""; savePrefs(); renderLibrary();
+          toast("Deleted “" + f.name + "”.", { label: "Undo", run(){
+            folders.push(f); inside.forEach((c) => { if (charts[c.id]) charts[c.id].folderId = f.id; });
+            saveFolders(); saveNow(); prefs.folder = f.id; savePrefs(); renderLibrary();
+          } });
+        } }]
+      }), 280) }
+    ] });
+  }
+  function renderFolderBar(){
+    const bar = $("folderBar");
+    bar.innerHTML = "";
+    const all = Object.values(charts);
+    const chip = (label, count, id) => {
+      const b = h("button", "fchip");
+      b.appendChild(h("span", "", label));
+      b.appendChild(h("span", "n", String(count)));
+      b.setAttribute("aria-pressed", String(prefs.folder === id));
+      b.addEventListener("click", () => selectFolder(id));
+      bar.appendChild(b);
+    };
+    chip("All", all.length, "");
+    sortedFolders().forEach((f) => chip(f.name, all.filter((c) => c.folderId === f.id).length, f.id));
+    const add = h("button", "fchip add");
+    add.innerHTML = ICON.folderAdd;
+    add.appendChild(h("span", "", "New folder"));
+    add.addEventListener("click", () => createFolder((f) => { selectFolder(f.id); toast("Created “" + f.name + "”. Use a chart's ••• menu to move it here."); }));
+    bar.appendChild(add);
+  }
+  $("folderMenu").addEventListener("click", folderActions);
 
   /* ============================ routing ============================ */
   function openChart(id, replace){
@@ -1142,9 +1301,15 @@
     const list = $("libList");
     list.innerHTML = "";
     const all = sortedCharts();
+    if (prefs.folder && !folderById(prefs.folder)) prefs.folder = "";
+    const folder = folderById(prefs.folder);
+    const scope = folder ? all.filter((c) => c.folderId === folder.id) : all;
     const q = state.query.trim().toLowerCase();
-    const items = all.filter((c) => !q || (c.title + " " + c.artist).toLowerCase().indexOf(q) !== -1);
-    $("libHead").hidden = !items.length;
+    const items = scope.filter((c) => !q || (c.title + " " + c.artist).toLowerCase().indexOf(q) !== -1);
+    renderFolderBar();
+    $("libTitle").textContent = folder ? folder.name : "My charts";
+    $("folderMenu").hidden = !folder;
+    $("libHead").hidden = !items.length && !folder;
 
     if (!all.length){
       const e = h("div", "empty");
@@ -1154,9 +1319,19 @@
       const b = h("button", "btn", "Import backup"); b.addEventListener("click", () => $("importInput").click());
       row.appendChild(a); row.appendChild(b); e.appendChild(row);
       list.appendChild(e);
+    } else if (folder && !scope.length){
+      const e = h("div", "empty");
+      e.innerHTML = ICON.note;
+      e.appendChild(h("h2", "", "Nothing in here yet"));
+      e.appendChild(h("p", "", "Start a chart in “" + folder.name + "”, or open any chart's ••• menu and choose Move to folder."));
+      const row = h("div", "row");
+      const a = h("button", "btn pri", "New chart here"); a.addEventListener("click", newChart);
+      const b = h("button", "btn", "Show all charts"); b.addEventListener("click", () => selectFolder(""));
+      row.appendChild(a); row.appendChild(b); e.appendChild(row);
+      list.appendChild(e);
     } else if (!items.length){
       const e = h("div", "empty");
-      e.appendChild(h("p", "", "No charts match “" + state.query.trim() + "”."));
+      e.appendChild(h("p", "", "No charts " + (folder ? "in “" + folder.name + "” " : "") + "match “" + state.query.trim() + "”."));
       list.appendChild(e);
     } else {
       const grid = h("div", "cards");
@@ -1170,6 +1345,8 @@
         const txt = h("span", "card-txt");
         const top = h("span", "card-top");
         top.appendChild(h("span", "card-title", c.title.trim() || "Untitled chart"));
+        const cf = !folder && folderById(c.folderId);
+        if (cf) top.appendChild(h("span", "card-tag", cf.name));
         top.appendChild(h("span", "card-time", relTime(c.updatedAt)));
         txt.appendChild(top);
         const sub = [];
@@ -2145,6 +2322,7 @@
 
   /* ============================ boot ============================ */
   loadCharts();
+  loadFolders();
   route();
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")){
     window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
