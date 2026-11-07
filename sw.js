@@ -2,7 +2,7 @@
    The app opens from the cache instantly; a fresh copy is fetched in the
    background and used the next time the app opens.
    Bump VERSION whenever any app file changes. */
-const VERSION = "barline-v1.0.0";
+const VERSION = "barline-v1.1.0";
 const SHELL = [
   "./",
   "./index.html",
