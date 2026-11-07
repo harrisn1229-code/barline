@@ -4,7 +4,7 @@
    Bump VERSION whenever any app file changes. Only caches named barline-*
    are ever cleared, so other apps on the same site keep theirs. */
 const PREFIX = "barline-";
-const VERSION = PREFIX + "v1.5.0";
+const VERSION = PREFIX + "v1.6.0";
 const SHELL = [
   "./",
   "./index.html",

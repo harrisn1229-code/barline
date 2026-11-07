@@ -417,6 +417,24 @@
     box-shadow:0 10px 28px rgba(0,0,0,.28);animation:toastIn .2s ease
   }
   .toast button{color:var(--toast-act);font-weight:700;padding:2px 2px}
+  /* ---------- AI assistant ---------- */
+  .ai-body{padding:0 18px 14px}
+  .ai-note{margin:0 0 12px;font-size:13.5px;line-height:1.45;color:var(--muted)}
+  .ai-body .name-in{width:100%;margin:0 0 12px}
+  .ai-in{display:block;width:100%;min-height:86px;padding:11px 13px;border:1px solid var(--rule-strong);border-radius:12px;background:var(--surface-2);font-size:16px;line-height:1.4;color:var(--ink);resize:vertical}
+  .ai-in:focus{outline:none;border-color:var(--chord)}
+  .ai-row{display:flex;align-items:center;gap:10px;margin:10px 0 8px}
+  .ai-mic{height:36px;padding:0 13px}
+  .ai-mic.on{background:var(--beat-soft);color:var(--beat)}
+  .ai-tip{font-size:12.5px;color:var(--faint)}
+  .ai-ex{display:flex;flex-wrap:wrap;gap:6px}
+  .ai-ex .chip{height:30px;padding:0 11px;font-size:13px}
+  .ai-reply{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--chord-soft);font-size:14.5px;line-height:1.45;color:var(--ink)}
+  .ai-reply.err{background:var(--surface-2);background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
+  .bsheet-cancel.busy{opacity:.75}
+  .ai-undo{margin-left:4px;padding:0 2px;font-weight:700;color:var(--chord);text-decoration:underline;text-underline-offset:3px}
+  .ai-set{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13.5px;line-height:1.4;color:var(--muted)}
+  .ai-set .btn{flex:none;height:36px}
   /* ---------- score ---------- */
   .sc-set{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
   .sc-field{display:flex;align-items:center;gap:4px;height:36px;padding:0 6px 0 12px;background:var(--surface-2);border-radius:11px;font-size:13px;color:var(--muted)}
@@ -495,6 +513,7 @@
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="3" y="3.5" width="1.6" height="11" rx=".8" fill="#ECF0E6"/><circle cx="7.6" cy="9" r="1.7" fill="#F2B65C"/><rect x="10.6" y="3.5" width="1.6" height="11" rx=".8" fill="#ECF0E6"/><rect x="13.3" y="3.5" width="2.5" height="11" rx=".9" fill="#ECF0E6"/></svg>
         </span>
         <span class="appname">Barline</span>
+        <button class="iconbtn" id="libAi" aria-label="New chart with the AI assistant"></button>
         <button class="iconbtn" id="libSettings" aria-label="Settings"></button>
         <button class="iconbtn" id="libMenu" aria-label="Backup and import"></button>
       </div>
@@ -529,7 +548,7 @@
           </button>
         </div>
         <div class="navtitle" id="navTitle"></div>
-        <div class="nav-side end"><button class="iconbtn" id="chartMenu" aria-label="Chart options"></button></div>
+        <div class="nav-side end"><button class="iconbtn" id="chartAi" aria-label="AI assistant"></button><button class="iconbtn" id="chartMenu" aria-label="Chart options"></button></div>
       </div>
       <div class="segbar">
         <div class="seg" id="viewSeg" role="tablist" aria-label="View">
@@ -647,6 +666,8 @@
     plus: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>',
     note20: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 15V4.5l8-1.5v10.5"/><circle cx="5.8" cy="15" r="2.2"/><circle cx="13.8" cy="13.5" r="2.2"/></svg>',
     x20: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>',
+    sparkle: '<svg width="21" height="21" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M9 2.5l1.7 4.8 4.8 1.7-4.8 1.7L9 15.5l-1.7-4.8L2.5 9l4.8-1.7z"/><path d="M15.5 12.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg>',
+    mic: '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="6" height="10" rx="3"/><path d="M4.5 9.5a5.5 5.5 0 0011 0M10 15v2.5"/></svg>',
     trash: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 5.5h13M8 5.5V3.5h4v2M5.5 5.5l.8 10.6a1 1 0 001 .9h5.4a1 1 0 001-.9l.8-10.6"/></svg>',
     up: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 16V4M5 9l5-5 5 5"/></svg>',
     down: '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4v12M5 11l5 5 5-5"/></svg>',
@@ -663,6 +684,8 @@
   $("libMenu").innerHTML = ICON.more;
   $("chartMenu").innerHTML = ICON.more;
   $("libSettings").innerHTML = ICON.gear;
+  $("libAi").innerHTML = ICON.sparkle;
+  $("chartAi").innerHTML = ICON.sparkle;
   $("folderMenu").innerHTML = ICON.more;
 
   /* ============================ model ============================ */
@@ -1094,6 +1117,21 @@
       fontRow.appendChild(prev);
       card.appendChild(fontRow);
 
+      const aiRow = setRow("AI assistant");
+      const aiSet = h("div", "ai-set");
+      const hasKey = !!aiKey();
+      aiSet.appendChild(h("span", "", hasKey ? "Your Anthropic API key is saved on this device." : "Add your Anthropic API key to fill in charts by talking or typing."));
+      const keyBtn = h("button", "btn", hasKey ? "Remove key" : "Add key");
+      keyBtn.addEventListener("click", () => {
+        if (hasKey){
+          try { localStorage.removeItem(AI_KEY); } catch(e){}
+          closeSheet(); toast("API key removed from this device.");
+        } else { closeSheet(); setTimeout(openAi, 280); }
+      });
+      aiSet.appendChild(keyBtn);
+      aiRow.appendChild(aiSet);
+      card.appendChild(aiRow);
+
       body.appendChild(card);
       const done = h("button", "bsheet-cancel", "Done");
       done.addEventListener("click", closeSheet);
@@ -1348,6 +1386,308 @@
     bar.appendChild(add);
   }
   $("folderMenu").addEventListener("click", folderActions);
+
+  /* ============================ AI assistant ============================ */
+  // Talk or type what you want ("12-bar blues in A at 120, then a bridge") and Claude fills in the chart.
+  // The request goes straight from this device to Anthropic's API with the musician's own API key,
+  // which is kept in this browser's storage only (never in backups). Each request is stateless: the
+  // current chart plus the request go up, the whole updated chart comes back as schema-checked JSON.
+  const AI_KEY = "barline:aiKey";
+  const AI_MODEL = "claude-opus-5-5";
+  const aiKey = () => store.get(AI_KEY, "") || "";
+  const AI_SYSTEM = [
+    "You fill in and edit chord charts in Barline, a chord-chart app for working musicians.",
+    "Each message has the current chart as JSON and a request from the musician. Requests are often dictated, so expect speech-to-text slips (\"see major\" for C major, \"be flat\" for B flat, \"for four\" for 4/4) and read them as a musician would.",
+    "Return the complete chart after the change. Keep everything the musician didn't ask to change exactly as it is, including section order, bar counts, chords and lyrics.",
+    "",
+    "Chart fields:",
+    "- key: like \"C\", \"F#m\", \"Bb\", or \"\" if unknown. bpm: 20 to 320. Time signature: top (beats per bar, 1 to 12) over bot (2, 4 or 8).",
+    "- sections: in playing order, each with a name (Intro, Verse, Pre-Chorus, Chorus, Bridge, Solo, Outro and so on) and repeat, the number of times it plays in a row (1 if once).",
+    "- bars: one entry per bar. chords lists the chords in that bar in order: one chord fills the bar, two split it in half. For exact placement give exactly one entry per beat, using \"\" where the previous chord keeps sounding. An empty list means the chord from before carries on.",
+    "- Chord symbols use standard spelling: C, Am, F#m7b5, Bbmaj7, G/B, Dsus4, E7#9, C6/9, N.C.",
+    "- lyric: words sung in that bar, only when the musician gives you the words. Do not write out the lyrics of published songs; leave lyric empty instead.",
+    "- instrumental: true for songs with no vocals.",
+    "",
+    "When asked for a well-known song, write the chord progression as it is usually played and say in your reply that it is from memory and worth checking against the recording.",
+    "reply: one or two short sentences to the musician about what you did. If the request was unclear, make the most sensible change and say what you assumed."
+  ].join("\n");
+  const AI_SCHEMA = {
+    type: "object",
+    properties: {
+      reply: { type: "string" },
+      title: { type: "string" },
+      artist: { type: "string" },
+      key: { type: "string" },
+      bpm: { type: "integer" },
+      top: { type: "integer" },
+      bot: { type: "integer", enum: [2, 4, 8] },
+      instrumental: { type: "boolean" },
+      sections: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            repeat: { type: "integer" },
+            bars: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: { chords: { type: "array", items: { type: "string" } }, lyric: { type: "string" } },
+                required: ["chords", "lyric"],
+                additionalProperties: false
+              }
+            }
+          },
+          required: ["name", "repeat", "bars"],
+          additionalProperties: false
+        }
+      }
+    },
+    required: ["reply", "title", "artist", "key", "bpm", "top", "bot", "instrumental", "sections"],
+    additionalProperties: false
+  };
+  // The chart as the model sees it: chords one entry per beat, so exact placement survives a round trip.
+  function aiChartJson(c){
+    return JSON.stringify({
+      title: c.title, artist: c.artist, key: c.key, bpm: c.bpm, top: c.top, bot: c.bot, instrumental: c.instrumental,
+      sections: c.sections.map((s) => ({
+        name: s.name, repeat: s.repeat || 1,
+        bars: s.bars.map((b) => {
+          const ch = [];
+          for (let i = 0; i < c.top; i++) ch.push(chordAt(b, i));
+          return { chords: ch.some(Boolean) ? ch : [], lyric: c.instrumental ? "" : (b.lyric || "") };
+        })
+      }))
+    });
+  }
+  class AiError extends Error {}
+  async function askClaude(c, request, signal){
+    const send = (withFallback) => {
+      const headers = {
+        "content-type": "application/json",
+        "x-api-key": aiKey(),
+        "anthropic-version": "2026-10-21",
+        "anthropic-dangerous-direct-browser-access": "true"
+      };
+      const body = {
+        model: AI_MODEL,
+        max_tokens: 16000,
+        system: AI_SYSTEM,
+        output_config: { effort: "medium", format: { type: "json_schema", schema: AI_SCHEMA } },
+        messages: [{ role: "user", content: "Current chart:\n" + aiChartJson(c) + "\n\nRequest: " + request }]
+      };
+      // If a request is declined by a safety check, let Anthropic retry it on a suitable model.
+      if (withFallback){ headers["anthropic-beta"] = "server-side-fallback-2026-07-01"; body.fallbacks = "default"; }
+      return fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: headers, body: JSON.stringify(body), signal: signal });
+    };
+    let res;
+    try {
+      res = await send(true);
+      if (res.status === 400){
+        const err = await res.clone().json().catch(() => null);
+        const msg = err && err.error && err.error.message || "";
+        if (/fallback|anthropic-beta/i.test(msg)) res = await send(false);
+      }
+    } catch(e){
+      if (e && e.name === "AbortError") throw e;
+      throw new AiError("Couldn't reach Anthropic. Check your connection and try again.");
+    }
+    const data = await res.json().catch(() => null);
+    if (!res.ok){
+      const msg = data && data.error && data.error.message ? data.error.message : "";
+      if (res.status === 401) throw new AiError("That API key wasn't accepted. Check it in Settings.");
+      if (res.status === 403) throw new AiError("This API key isn't allowed to do that. " + msg);
+      if (res.status === 429) throw new AiError("Too many requests for now. Wait a moment and try again.");
+      if (res.status === 529 || res.status >= 500) throw new AiError("Claude is busy right now. Try again in a moment.");
+      throw new AiError("The request didn't go through" + (msg ? ": " + msg : "."));
+    }
+    if (!data || !Array.isArray(data.content)) throw new AiError("Got an empty answer. Try again.");
+    if (data.stop_reason === "refusal") throw new AiError("Claude couldn't help with that request.");
+    if (data.stop_reason === "max_tokens") throw new AiError("The answer was cut off. Try asking for a smaller change.");
+    const text = data.content.filter((b) => b && b.type === "text").map((b) => b.text).join("");
+    let out;
+    try { out = JSON.parse(text); } catch(e){ throw new AiError("The answer wasn't a chart. Try rephrasing."); }
+    if (!out || !Array.isArray(out.sections) || !out.sections.length) throw new AiError("The answer had no sections. Try rephrasing.");
+    return out;
+  }
+  // Write the model's chart into the real one. Bars keep any sheet music written on them (matched by
+  // position), the parts list is untouched, and the whole change is one Undo.
+  function applyAiChart(c, r){
+    const snap = JSON.parse(JSON.stringify(c));
+    const str = (v, n) => String(v == null ? "" : v).slice(0, n || 200);
+    c.title = str(r.title).trim(); c.artist = str(r.artist).trim(); c.key = str(r.key, 20).trim();
+    c.bpm = clamp(parseInt(r.bpm, 10) || c.bpm, 20, 320);
+    c.top = clamp(parseInt(r.top, 10) || c.top, 1, 12);
+    c.bot = [2, 4, 8].indexOf(+r.bot) !== -1 ? +r.bot : c.bot;
+    c.instrumental = !!r.instrumental;
+    const old = c.sections;
+    c.sections = r.sections.slice(0, 60).map((s, i) => {
+      const os = old[i];
+      const bars = (Array.isArray(s.bars) ? s.bars : []).slice(0, 256).map((b, j) => {
+        const nb = { chords: [], lyric: str(b && b.lyric) };
+        const arr = (b && Array.isArray(b.chords) ? b.chords : []).map((x) => str(x, 24).replace(/\s+/g, ""));
+        if (arr.length === c.top) nb.chords = arr;
+        else setBarFromText(nb, arr.filter(Boolean).join(" "), c.top);
+        const ob = os && os.bars[j];
+        if (ob && ob.n) nb.n = ob.n;
+        return nb;
+      });
+      return { id: os ? os.id : uid(), name: str(s.name, 40).trim() || "Section", repeat: clamp(parseInt(s.repeat, 10) || 1, 1, 16), bars: bars.length ? bars : [makeBar()] };
+    });
+    normalize(c);
+    c.updatedAt = Date.now();
+    saveNow();
+    return snap;
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const AI_EXAMPLES = ["12-bar blues in A, 120 bpm", "Add a chorus: C G Am F, twice", "Make the bridge four bars of Dm7 G7", "Change it to 3/4 at 90"];
+  let aiBusy = null;
+  function openAi(){
+    const c = cur();
+    if (!c && aiKey()) return;
+    stop();
+    openSheet((body) => {
+      const card = h("div", "bsheet-card ai");
+      const head = h("div", "bsheet-head");
+      head.appendChild(h("div", "bsheet-title", "AI assistant"));
+      head.appendChild(h("div", "bsheet-msg", "Say or type what you want in the chart. Claude fills it in and you can undo it."));
+      card.appendChild(head);
+      body.appendChild(card);
+
+      if (!aiKey()){
+        const box = h("div", "ai-body");
+        box.appendChild(h("p", "ai-note", "To use the assistant, add your own Anthropic API key. Create one at console.anthropic.com (API keys). It's pay as you go: a request usually costs a few cents."));
+        const form = h("form", "");
+        const input = h("input", "name-in");
+        input.type = "password"; input.placeholder = "sk-ant-…"; input.autocomplete = "off"; input.spellcheck = false;
+        input.setAttribute("autocapitalize", "off"); input.setAttribute("aria-label", "Anthropic API key");
+        form.appendChild(input);
+        box.appendChild(form);
+        box.appendChild(h("p", "ai-note", "The key stays on this device, is never put in backups, and is only sent to Anthropic. Your requests and this chart go to Anthropic to be answered."));
+        card.appendChild(box);
+        const save = h("button", "bsheet-cancel pri", "Save key");
+        save.type = "button";
+        const submit = () => {
+          const v = input.value.trim();
+          if (!/^sk-ant-[A-Za-z0-9_\-]{10,}$/.test(v)){ toast("That doesn't look like an Anthropic API key (they start with sk-ant-)."); input.focus(); return; }
+          if (!store.set(AI_KEY, v)){ toast("Couldn't save the key on this device."); return; }
+          if (cur()) openAi();
+          else { closeSheet(); toast("Key saved. Tap ✨ to start a chart with the assistant."); }
+        };
+        form.addEventListener("submit", (e) => { e.preventDefault(); submit(); });
+        save.addEventListener("click", submit);
+        const cancel = h("button", "bsheet-cancel", "Cancel");
+        cancel.addEventListener("click", closeSheet);
+        body.appendChild(save); body.appendChild(cancel);
+        return;
+      }
+
+      const box = h("div", "ai-body");
+      const reply = h("div", "ai-reply"); reply.id = "aiReply"; reply.hidden = true;
+      reply.setAttribute("role", "status");
+      box.appendChild(reply);
+      const ta = h("textarea", "ai-in");
+      ta.id = "aiIn"; ta.rows = 3; ta.placeholder = "e.g. Verse is G D Em C twice, then a chorus of C G D D";
+      ta.setAttribute("aria-label", "What should the assistant do?");
+      box.appendChild(ta);
+      const row = h("div", "ai-row");
+      if (SR){
+        const mic = h("button", "btn ai-mic");
+        mic.innerHTML = ICON.mic; mic.appendChild(document.createTextNode(" Talk"));
+        mic.setAttribute("aria-label", "Talk instead of typing");
+        mic.addEventListener("click", () => dictate(ta, mic));
+        row.appendChild(mic);
+      }
+      row.appendChild(h("span", "ai-tip", SR ? "or use the keyboard's mic" : "Tip: tap the mic on your keyboard to talk"));
+      box.appendChild(row);
+      const ex = h("div", "ai-ex");
+      AI_EXAMPLES.forEach((t) => { const b = h("button", "chip", t); b.addEventListener("click", () => { ta.value = t; ta.focus(); }); ex.appendChild(b); });
+      box.appendChild(ex);
+      card.appendChild(box);
+
+      const go = h("button", "bsheet-cancel pri", "Fill in the chart");
+      go.id = "aiGo"; go.type = "button";
+      const close = h("button", "bsheet-cancel", "Close");
+      close.addEventListener("click", () => { if (aiBusy) aiBusy.abort(); closeSheet(); });
+      go.addEventListener("click", () => runAi(c, ta, go, reply));
+      ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); runAi(c, ta, go, reply); } });
+      body.appendChild(go); body.appendChild(close);
+    }, true);
+    const ta = $("aiIn");
+    if (ta) ta.focus();
+    else { const k = document.querySelector("#sheetBody .name-in"); if (k) k.focus(); }
+  }
+  async function runAi(c, ta, go, reply){
+    if (aiBusy){ aiBusy.abort(); return; }
+    const text = ta.value.trim();
+    if (!text){ ta.focus(); return; }
+    aiBusy = new AbortController();
+    go.textContent = "Working… tap to stop"; go.classList.add("busy");
+    reply.hidden = true;
+    try {
+      const out = await askClaude(c, text, aiBusy.signal);
+      const target = charts[c.id];
+      if (!target) return;
+      const snap = applyAiChart(target, out);
+      if (cur() === target) renderChartScreen();
+      ta.value = "";
+      const undo = () => {
+        charts[snap.id] = normalize(snap); saveNow();
+        if (state.chartId === snap.id) renderChartScreen(); else renderLibrary();
+      };
+      if (reply.isConnected && !$("bsheet").hidden){
+        // The sheet is still open: show the answer with its own Undo, where a toast would cover the buttons.
+        reply.hidden = false; reply.className = "ai-reply";
+        reply.textContent = String(out.reply || "Done.").slice(0, 600) + " ";
+        const u = h("button", "ai-undo", "Undo");
+        u.addEventListener("click", () => { undo(); reply.textContent = "Undone. The chart is back the way it was."; });
+        reply.appendChild(u);
+      } else toast("The assistant updated the chart.", { label: "Undo", run: undo });
+    } catch(e){
+      if (e && e.name === "AbortError"){ reply.hidden = false; reply.className = "ai-reply"; reply.textContent = "Stopped."; }
+      else { reply.hidden = false; reply.className = "ai-reply err"; reply.textContent = e instanceof AiError ? e.message : "Something went wrong. Try again."; }
+    } finally {
+      aiBusy = null;
+      go.textContent = "Fill in the chart"; go.classList.remove("busy");
+    }
+  }
+  // Speech to text where the browser has it (Safari on iPhone does); the keyboard mic always works too.
+  let listening = null;
+  function dictate(ta, btn){
+    if (listening){ listening.stop(); return; }
+    let rec;
+    try { rec = new SR(); } catch(e){ toast("Talking isn't available here. Use the mic on your keyboard."); return; }
+    rec.lang = navigator.language || "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+    const base = ta.value ? ta.value.replace(/\s*$/, " ") : "";
+    rec.onresult = (e) => {
+      let s = "";
+      for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript;
+      ta.value = base + s;
+    };
+    rec.onerror = (e) => { if (e.error === "not-allowed") toast("Allow microphone access to talk to the assistant."); };
+    rec.onend = () => { listening = null; btn.classList.remove("on"); btn.lastChild.textContent = " Talk"; };
+    listening = rec;
+    btn.classList.add("on"); btn.lastChild.textContent = " Listening…";
+    try { rec.start(); } catch(e){ listening = null; btn.classList.remove("on"); }
+  }
+  function newChartWithAi(){
+    const c = blankChart();
+    if (folderById(prefs.folder)) c.folderId = prefs.folder;
+    charts[c.id] = c;
+    saveNow();
+    prefs.view = "edit"; savePrefs();
+    // Route in the same tap (no hashchange wait) so the sheet's text box can take focus and bring up the keyboard.
+    state.navFromLib = true; state.libScroll = window.scrollY;
+    history.pushState(null, "", "#c-" + c.id);
+    route();
+    openAi();
+  }
+  $("chartAi").addEventListener("click", openAi);
+  $("libAi").addEventListener("click", newChartWithAi);
 
   /* ============================ routing ============================ */
   function openChart(id, replace){
