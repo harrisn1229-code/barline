@@ -316,6 +316,12 @@
   .kchip b.d6{background:#7C3AED;color:#fff}.kchip b.d7{background:#EC4899;color:#fff}
   .viewbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:14px}
   .page{--cfs:14px;padding-top:16px;border-top:.5px solid var(--rule)}
+  /* two columns for long charts: lines never split, section names stay with their first line */
+  .page.two{column-count:2;column-gap:28px;column-rule:.5px solid var(--rule)}
+  .page.two .tapnote{column-span:all}
+  .page.two .cline{break-inside:avoid}
+  .page.two .csec-name{break-after:avoid}
+  .page.two .csec{margin-bottom:16px}
   .csec{margin-bottom:20px}
   .csec-name{display:block;margin:0 0 6px -8px;padding:2px 8px;border-radius:6px;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--muted);text-align:left}
   .csec-name:active{background:var(--surface-2)}
@@ -940,8 +946,8 @@
     out.push({ kind: "lyric", text: lyricStr.replace(/\s+$/, "") });
     return out;
   }
-  function chartBlocks(c){
-    const bpl = Math.max(1, c.barsPerLine || 4);
+  function chartBlocks(c, perLine){
+    const bpl = Math.max(1, perLine || c.barsPerLine || 4);
     return c.sections.map((s, si) => {
       const rows = [];
       for (let i = 0; i < s.bars.length; i += bpl){
@@ -1053,7 +1059,7 @@
 
   /* ============================ prefs + state ============================ */
   const prefs = Object.assign(
-    { met: true, countIn: true, vol: 0.55, zoom: "bar", view: "edit", chartSize: "fit", fence: false, installDismissed: false,
+    { met: true, countIn: true, vol: 0.55, zoom: "bar", view: "edit", chartSize: "fit", chartCols: "auto", fence: false, installDismissed: false,
       theme: "system", accent: "teal", titleFont: "sans", piano: true, pianoVol: 0.8, folder: "" },
     (function(){ try { return JSON.parse(store.get("barline:prefs", "{}")) || {}; } catch(e){ return {}; } })()
   );
@@ -2717,7 +2723,7 @@
   function renderChart(){
     const c = cur();
     const root = $("vChart");
-    const blocks = chartBlocks(c);
+    const blocks = chartBlocks(c, chartHalf ? Math.ceil((c.barsPerLine || 4) / 2) : 0);
     const n = barCount(c);
     const meta = [];
     if (c.key.trim()) meta.push(["Key", c.key.trim()]);
@@ -2782,21 +2788,49 @@
     fitB.addEventListener("click", () => { prefs.chartSize = "fit"; savePrefs(); renderChart(); });
     box.appendChild(minus); box.appendChild(fitB); box.appendChild(plus);
     bar.appendChild(box);
+    // Columns: Auto uses two when the chart is longer than the screen and both still fit readably.
+    const cols = h("div", "stepper cols");
+    cols.appendChild(h("span", "lbl", "Columns"));
+    [["auto", "Auto"], ["1", "1"], ["2", "2"]].forEach(([v, l]) => {
+      const b = h("button", "fit", l);
+      b.setAttribute("aria-pressed", String((prefs.chartCols || "auto") === v));
+      b.setAttribute("aria-label", v === "auto" ? "Columns: automatic" : v + (v === "1" ? " column" : " columns"));
+      b.addEventListener("click", () => { prefs.chartCols = v; savePrefs(); renderChart(); });
+      cols.appendChild(b);
+    });
+    bar.appendChild(cols);
     applyChartSize();
   }
   let lastChartSize = 14;
   function currentChartSize(){ return lastChartSize; }
+  const COL_GAP = 28, READABLE = 12;
+  // In two columns, lines too long for a column even at the smallest size are drawn with half as
+  // many bars per line (Chart tab only), so nothing gets cut off.
+  let chartHalf = false;
   function applyChartSize(){
     const page = $("page");
     if (!page) return;
-    let size;
-    if (prefs.chartSize === "fit"){
-      const pres = page.querySelectorAll(".cline pre");
-      let longest = 24;
-      pres.forEach((p) => p.textContent.split("\n").forEach((l) => { longest = Math.max(longest, l.length); }));
-      const avail = page.clientWidth - 14;
-      size = clamp(Math.floor(avail / (longest * 0.6) * 2) / 2, 10, 20);
-    } else size = clamp(parseFloat(prefs.chartSize) || 14, 10, 26);
+    const pres = page.querySelectorAll(".cline pre");
+    let longest = 24;
+    pres.forEach((p) => p.textContent.split("\n").forEach((l) => { longest = Math.max(longest, l.length); }));
+    const fitTo = (w) => clamp(Math.floor((w - 14) / (longest * 0.6) * 2) / 2, 10, 20);
+    const sizeFor = (w) => prefs.chartSize === "fit" ? fitTo(w) : clamp(parseFloat(prefs.chartSize) || 14, 10, 26);
+    const full = page.clientWidth, colW = (full - COL_GAP) / 2;
+    // Lay out in one column first, then decide whether two columns are worth it.
+    page.classList.remove("two");
+    page.style.setProperty("--cfs", sizeFor(full) + "px");
+    const mode = prefs.chartCols || "auto";
+    let two = mode === "2";
+    if (mode === "auto"){
+      const fits = prefs.chartSize === "fit" ? fitTo(colW) >= READABLE : sizeFor(colW) * longest * 0.6 <= colW - 14;
+      const long = page.getBoundingClientRect().height > window.innerHeight * 0.85;
+      two = fits && long;
+    }
+    const raw = (colW - 14) / (longest * 0.6);
+    if (two && !chartHalf && (prefs.chartSize === "fit" ? raw < 10 : sizeFor(colW) > raw) && (cur() && (cur().barsPerLine || 4) > 1)){ chartHalf = true; renderChart(); return; }
+    if (!two && chartHalf){ chartHalf = false; renderChart(); return; }
+    const size = sizeFor(two ? colW : full);
+    page.classList.toggle("two", two);
     lastChartSize = size;
     page.style.setProperty("--cfs", size + "px");
   }
